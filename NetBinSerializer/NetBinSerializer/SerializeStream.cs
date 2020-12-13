@@ -89,6 +89,55 @@ namespace NetBinSerializer
 			Writer.Write(str);
 		}
 
+		private IEnumerable<int[]> ndArrayWalker(int[] dimensions) {
+			int[] currentPos = new int[dimensions.Length];
+			while(true) { 
+				yield return currentPos;
+					
+				int changeIndex;
+				for(changeIndex = currentPos.Length - 1; changeIndex > -1 && currentPos[changeIndex] == dimensions[changeIndex] - 1; changeIndex--)
+					currentPos[changeIndex] = 0;
+
+				if(changeIndex == -1)
+					yield break;
+				else
+					currentPos[changeIndex]++;
+			}
+		}
+
+		public void writeArray(Array arr) {
+
+			int rank = arr.Rank;
+			Type elementType = arr.GetType().GetElementType();
+			write(rank);
+			if(rank == 1) { 
+				write(arr.Length);
+				if(elementType.IsArray) {
+					foreach(Array element in arr)
+						writeArray(element);
+				} else { 
+					foreach(object element in arr)
+						writeUnknown(element);
+				}
+			} else {
+				int[] dimensions = new int[rank];
+				
+				for(int dimensionIndex = 0; dimensionIndex < rank; dimensionIndex++) {
+					write(dimensions[dimensionIndex] = arr.GetLength(dimensionIndex));
+				}
+
+				
+				if(elementType.IsArray) {
+					foreach(int[] currentPos in ndArrayWalker(dimensions))
+						writeArray((Array)arr.GetValue(currentPos));
+				} else {
+					foreach(int[] currentPos in ndArrayWalker(dimensions))
+						writeUnknown(arr.GetValue(currentPos));
+				}
+				
+			}
+		}
+
 		public void write(Serializable serializable) {
 			serializable.writeToStream(this);
 		}
@@ -101,7 +150,7 @@ namespace NetBinSerializer
 			bf.Serialize(memoryStream, obj);
 		}
 
-		public void write(object value) {
+		public void writeUnknown(object value) {
 			if(value is Int64) {
 				write((Int64)value);
 			} 
@@ -140,12 +189,7 @@ namespace NetBinSerializer
 			} else if(value is SerializeStream) {
 				write(((SerializeStream)value).getBytes());
 			} else if(value is Array) {
-				write(((Array)value).Length);
-				IEnumerable<object> arr = (IEnumerable<object>)value;
-				foreach(object obj in arr)
-					write(obj);
-			} else if(value is Serializable) {
-				write((Serializable)value);
+				writeArray((Array)value);
 			}
 			else {
 				if(!Serializer.serialize(value, this))
@@ -194,9 +238,51 @@ namespace NetBinSerializer
 			return Reader.ReadString();
 		}
 
+		public ARRAY_TYPE readArray<ARRAY_TYPE>() {
+			return (ARRAY_TYPE)(object)readArray(typeof(ARRAY_TYPE));
+		}
+
+		public Array readArray(Type arrayType) { 
+			int rank = readInt32();
+			Type elementType = arrayType.GetElementType();
+			if(rank == 1) { 
+				int length = readInt32();
+				Array result = Array.CreateInstance(elementType, length);
+
+				if(elementType.IsArray) { 
+					for(int index = 0; index < length; index++)
+						result.SetValue(readArray(elementType), index);
+				} else { 
+					for(int index = 0; index < length; index++)
+						result.SetValue(readUnknown(elementType), index);
+				}
+				return result;
+			} else { 
+				int[] dimensions = new int[rank];
+				for(int dimensionIndex = 0; dimensionIndex < rank; dimensionIndex++) { 
+					dimensions[dimensionIndex] = readInt32();
+				}
+
+				Array result = Array.CreateInstance(elementType, dimensions);
+				if(elementType.IsArray) { 
+					foreach(int[] currentPos in ndArrayWalker(dimensions))
+						result.SetValue(readArray(elementType), currentPos);
+				} else { 
+					foreach(int[] currentPos in ndArrayWalker(dimensions))
+						result.SetValue(readUnknown(elementType), currentPos);
+				}
+
+				return result;
+			}
+		}
+
 		public object readObject() {
 			BinaryFormatter bf = new BinaryFormatter();
 			return bf.Deserialize(memoryStream);
+		}
+
+		public SERIALIZABLE_TYPE readSerializable<SERIALIZABLE_TYPE>() where SERIALIZABLE_TYPE : Serializable { 
+			return (SERIALIZABLE_TYPE)readSerializable(typeof(SERIALIZABLE_TYPE));
 		}
 
 		public Serializable readSerializable(Type t) { 
@@ -204,14 +290,14 @@ namespace NetBinSerializer
 		}
 
 		public void read<T>(out T result) {
-			result = (T)read(typeof(T));
+			result = (T)readUnknown(typeof(T));
 		}
 
 		public T read<T>() {
-			return (T)read(typeof(T));
+			return (T)readUnknown(typeof(T));
 		}
 
-		public object read(Type type) {
+		public object readUnknown(Type type) {
 			if(type == typeof(Int64)) {
 				return readInt64();
 			} 
@@ -252,16 +338,7 @@ namespace NetBinSerializer
 				return new SerializeStream(readBytes());
 			}
 			else if(type.IsArray) {
-				Type elementType = type.GetElementType();
-				int length = readInt32();
-				object[] array = new object[length];
-				
-				for(int index = 0; index < length; index++) { 
-					array[index] = read(elementType);
-				}
-				Array result = Array.CreateInstance(type, length);
-				Array.Copy(array, result, length);
-				return result;
+				return readArray(type);
 			} else if(typeof(Serializable).IsAssignableFrom(type)) { 
 				return readSerializable(type);
 			} else {
