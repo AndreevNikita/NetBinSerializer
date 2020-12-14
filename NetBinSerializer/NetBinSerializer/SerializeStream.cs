@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
@@ -34,6 +35,23 @@ namespace NetBinSerializer
 			Writer = new BinaryWriter(memoryStream);
 			Reader = new BinaryReader(memoryStream);
 			
+		}
+
+		private static readonly MethodInfo writeCollectionMethodInfo;
+		private static readonly MethodInfo writeKeyValuePairsCollectionMethodInfo;
+
+		private static readonly MethodInfo readCollectionMethodInfo;
+		private static readonly MethodInfo readKeyValuePairsCollectionMethodInfo;
+
+		static SerializeStream() {
+			writeCollectionMethodInfo = typeof(SerializeStream).GetMethod("writeCollection");
+			writeKeyValuePairsCollectionMethodInfo = typeof(SerializeStream).GetMethod("writeKeyValuePairsCollection");
+			readCollectionMethodInfo = typeof(SerializeStream).GetMethod("readCollection");
+			readKeyValuePairsCollectionMethodInfo = typeof(SerializeStream).GetMethod("readKeyValuePairsCollection");
+		}
+
+		private static bool isCollectionType(Type type) { 
+			return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ICollection<>);
 		}
 
 		public byte[] getBytes() {
@@ -142,6 +160,32 @@ namespace NetBinSerializer
 			serializable.writeToStream(this);
 		}
 
+		public void writeKeyValuePairsCollection<KEY_TYPE, VALUE_TYPE>(ICollection<KeyValuePair<KEY_TYPE, VALUE_TYPE>> collection) { 
+			write(collection.Count());
+			foreach(KeyValuePair<KEY_TYPE, VALUE_TYPE> pair in collection) { 
+				writeUnknown(pair.Key);
+				writeUnknown(pair.Value);
+			}
+		}
+
+		public void writeCollection<ELEMENT_TYPE>(ICollection<ELEMENT_TYPE> collection) { 
+			write(collection.Count());
+			foreach(ELEMENT_TYPE element in collection) { 
+				writeUnknown(element);
+			}
+		}
+
+		public void writeCollectionObject(object collection) {
+			Type elementType = collection.GetType().GetInterfaces().First((Type interfaceType) => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>)).GetGenericArguments()[0];
+			if(elementType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)) {
+				Type[] genericArgs = elementType.GetGenericArguments();
+				writeKeyValuePairsCollectionMethodInfo.MakeGenericMethod(genericArgs[0], genericArgs[1]).Invoke(this, new object[] { collection });
+			} else {
+				writeCollectionMethodInfo.MakeGenericMethod(elementType).Invoke(this, new object[] { collection });
+			}
+		}
+
+
 		public void writeObject(object obj) {
 			if(ENABLE_NOT_SERIALIZABLE_WARNINGS) {
 				Console.WriteLine("Warning! {0} is not serializable", obj.GetType().Name);
@@ -190,8 +234,9 @@ namespace NetBinSerializer
 				write(((SerializeStream)value).getBytes());
 			} else if(value is Array) {
 				writeArray((Array)value);
-			}
-			else {
+			} else if(value.GetType().GetInterfaces().Any((Type t) => isCollectionType(t))) {
+				writeCollectionObject(value);
+			} else {
 				if(!Serializer.serialize(value, this))
 					writeObject(value);
 			}
@@ -240,6 +285,37 @@ namespace NetBinSerializer
 
 		public ARRAY_TYPE readArray<ARRAY_TYPE>() {
 			return (ARRAY_TYPE)(object)readArray(typeof(ARRAY_TYPE));
+		}
+
+		
+		
+		public COLLECTION_TYPE readCollection<COLLECTION_TYPE, ELEMENT_TYPE>() where COLLECTION_TYPE : ICollection<ELEMENT_TYPE>, new() { 
+			COLLECTION_TYPE result = new COLLECTION_TYPE();
+			int length = readInt32();
+			for(int index = 0; index < length; index++)
+				result.Add(read<ELEMENT_TYPE>());
+			return result;
+		}
+
+		public COLLECTION_TYPE readKeyValuePairsCollection<COLLECTION_TYPE, KEY_TYPE, VALUE_TYPE>() where COLLECTION_TYPE : ICollection<KeyValuePair<KEY_TYPE, VALUE_TYPE>>, new() { 
+			COLLECTION_TYPE result = new COLLECTION_TYPE();
+			int length = readInt32();
+			for(int index = 0; index < length; index++) {
+				KEY_TYPE key = read<KEY_TYPE>();
+				VALUE_TYPE value = read<VALUE_TYPE>();
+				result.Add(new KeyValuePair<KEY_TYPE, VALUE_TYPE>(key, value));
+			}
+			return result;
+		}
+
+		public object readCollectionObject(Type collectionType) { 
+			Type elementType = collectionType.GetInterfaces().First((Type interfaceType) => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>)).GetGenericArguments()[0];
+			if(elementType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)) {
+				Type[] genericArgs = elementType.GetGenericArguments();
+				return readKeyValuePairsCollectionMethodInfo.MakeGenericMethod(collectionType, genericArgs[0], genericArgs[1]).Invoke(this, new object[0]);
+			} else { 
+				return readCollectionMethodInfo.MakeGenericMethod(collectionType, elementType).Invoke(this, new object[0]);
+			}
 		}
 
 		public Array readArray(Type arrayType) { 
@@ -341,9 +417,11 @@ namespace NetBinSerializer
 				return readArray(type);
 			} else if(typeof(Serializable).IsAssignableFrom(type)) { 
 				return readSerializable(type);
+			} else if(type.GetInterfaces().Any((Type t) => isCollectionType(t))) {
+				return readCollectionObject(type);
 			} else {
 				object result;
-				if(!Serializer.deserialize(this, type, out result))
+				if(Serializer.deserialize(this, type, out result))
 					result = readObject();
 				return result;
 			}

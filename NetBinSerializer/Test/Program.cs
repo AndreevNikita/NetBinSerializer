@@ -1,7 +1,9 @@
 ﻿using NetBinSerializer;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -33,7 +35,18 @@ namespace Test {
 	}
 
 	class Program {
+
+		static void foo<T1>(ICollection<T1> t) { 
+			Console.WriteLine(typeof(ICollection<T1>));
+		}
+
+		static T1 bar<T1, T2>() where T1 : ICollection<T2>, new() { 
+			T1 result = new T1();
+			return result;
+		}
+
 		static void Main(string[] args) {
+		
 			//--------------------------------Serialize--------------------------------
 			SerializeStream sstream = new SerializeStream();
 			//Write simple values
@@ -58,6 +71,18 @@ namespace Test {
 			//Write serializable
 			SerializableExample writeSerializableExample = new SerializableExample(3.0, 4.0);
 			sstream.write(writeSerializableExample);
+
+			//Write list
+			List<int> writeList = new List<int>() { 5, 3, 2, 1 };
+			sstream.writeCollection(writeList);
+
+			//Write dictionary
+			Dictionary<string, int> writeDict = new Dictionary<string, int>() { 
+				{ "azrael", 5 },
+				{ "luthor", 100},
+				{ "tom", 50},
+			};
+			sstream.writeCollectionObject(writeDict);
 
 			//--------------------------------Deserialize--------------------------------
 
@@ -114,6 +139,18 @@ namespace Test {
 			//Read serializable
 			SerializableExample readSerializableExample = dstream.readSerializable<SerializableExample>();
 			Console.WriteLine($"Output: {readSerializableExample}");
+
+			Console.WriteLine();
+			Console.WriteLine("Output list:");
+			foreach(int element in dstream.readCollection<List<int>, int>())
+				Console.Write($"{element} ");
+			Console.WriteLine();
+
+			Console.WriteLine();
+			Console.WriteLine("Output Dictionary:");
+			foreach(var element in (Dictionary<string, int>)dstream.readCollectionObject(typeof(Dictionary<string, int>)))
+				Console.WriteLine($"{element.Key}: {element.Value} ");
+			Console.WriteLine();
 
 			Console.ReadKey();
 		}
