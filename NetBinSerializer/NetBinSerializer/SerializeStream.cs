@@ -10,6 +10,17 @@ using System.Threading.Tasks;
 
 namespace NetBinSerializer
 {
+
+	public struct RWMethodsInfo { 
+		public readonly MethodInfo readMethodInfo;
+		public readonly MethodInfo writeMethodInfo;
+
+		public RWMethodsInfo(MethodInfo readMethodInfo, MethodInfo writeMethodInfo) { 
+			this.readMethodInfo = readMethodInfo;
+			this.writeMethodInfo = writeMethodInfo;
+		}
+	}
+
 	public class SerializeStream
 	{
 		public static bool ENABLE_NOT_SERIALIZABLE_WARNINGS = false;
@@ -37,18 +48,150 @@ namespace NetBinSerializer
 			
 		}
 
-		private static readonly MethodInfo writeCollectionMethodInfo;
-		private static readonly MethodInfo writeKeyValuePairsCollectionMethodInfo;
+		/*
+		 * --------------------------------------------MethodInfos for reflection usage------------------------------------------------
+		 */
 
-		private static readonly MethodInfo readCollectionMethodInfo;
-		private static readonly MethodInfo readKeyValuePairsCollectionMethodInfo;
+		public static readonly RWMethodsInfo rwInt64MethodsInfo;
+		public static readonly RWMethodsInfo rwInt32MethodsInfo;
+		public static readonly RWMethodsInfo rwInt16MethodsInfo;
+		public static readonly RWMethodsInfo rwSByteMethodsInfo;
+		public static readonly RWMethodsInfo rwUInt64MethodsInfo;
+		public static readonly RWMethodsInfo rwUInt32MethodsInfo;
+		public static readonly RWMethodsInfo rwUInt16MethodsInfo;
+		public static readonly RWMethodsInfo rwByteMethodsInfo;
+
+		public static readonly RWMethodsInfo rwFloatMethodsInfo;
+		public static readonly RWMethodsInfo rwDoubleMethodsInfo;
+
+		public static readonly RWMethodsInfo rwStringMethodsInfo;
+		public static readonly RWMethodsInfo rwBytesMethodsInfo;
+		public static readonly RWMethodsInfo rwArrayMethodsInfo;
+
+		public static readonly RWMethodsInfo rwSerializableMethodsInfo;
+
+		public static readonly RWMethodsInfo rwCollectionObjectMethodsInfo;
+		public static readonly RWMethodsInfo rwCollectionMethodsInfo;
+		public static readonly RWMethodsInfo rwKeyValuePairsCollectionMethodsInfo;
+
+		private static Dictionary<Type, RWMethodsInfo> baseTypesRWMethodInfosDictionary;
+
+		public static bool getBaseTypeRWMethodsIfExists(Type type, out RWMethodsInfo result) {
+			return baseTypesRWMethodInfosDictionary.TryGetValue(type, out result);
+		}
 
 		static SerializeStream() {
-			writeCollectionMethodInfo = typeof(SerializeStream).GetMethod("writeCollection");
-			writeKeyValuePairsCollectionMethodInfo = typeof(SerializeStream).GetMethod("writeKeyValuePairsCollection");
-			readCollectionMethodInfo = typeof(SerializeStream).GetMethod("readCollection");
-			readKeyValuePairsCollectionMethodInfo = typeof(SerializeStream).GetMethod("readKeyValuePairsCollection");
+			rwInt64MethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readInt64", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Int64) }, null)
+			);
+
+			rwInt32MethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readInt32", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Int32) }, null)
+			);
+
+			rwInt16MethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readInt16", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Int16) }, null)
+			);
+
+			rwSByteMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readSByte", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(sbyte) }, null)
+			);
+
+
+
+			rwUInt64MethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readUInt64", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(UInt64) }, null)
+			);
+
+			rwUInt32MethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readUInt32", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(UInt32) }, null)
+			);
+
+			rwUInt16MethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readUInt16", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(UInt16) }, null)
+			);
+
+			rwByteMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readByte", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(byte) }, null)
+			);
+
+			rwFloatMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readFloat", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(float) }, null)
+			);
+
+			rwDoubleMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readDouble", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(double) }, null)
+			);
+
+			rwStringMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readString", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(string) }, null)
+			);
+
+			rwBytesMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readBytes", BindingFlags.Public | BindingFlags.Instance, null, new Type[0], null),
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(byte[]) }, null)
+			);
+
+			rwArrayMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readArray", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Type) }, null),
+				typeof(SerializeStream).GetMethod("writeArray", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Array) }, null)
+			);
+
+
+			rwCollectionObjectMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readCollectionObject", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Type) }, null),
+				typeof(SerializeStream).GetMethod("writeCollectionObject", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(object) }, null)
+			);
+
+
+			rwCollectionMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readCollection"),
+				typeof(SerializeStream).GetMethod("writeCollection")
+			);
+
+			rwKeyValuePairsCollectionMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("readKeyValuePairsCollection"),
+				typeof(SerializeStream).GetMethod("writeKeyValuePairsCollection")
+			);
+
+			rwSerializableMethodsInfo = new RWMethodsInfo(
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Serializable) }, null), 
+				typeof(SerializeStream).GetMethod("readSerializable", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Type) }, null)
+			);
+
+			baseTypesRWMethodInfosDictionary = new Dictionary<Type, RWMethodsInfo>() { 
+				{ typeof(Int64),	rwInt64MethodsInfo },
+				{ typeof(Int32),	rwInt32MethodsInfo },
+				{ typeof(Int16),	rwInt16MethodsInfo },
+				{ typeof(SByte),	rwSByteMethodsInfo },
+
+				{ typeof(UInt64),	rwUInt64MethodsInfo },
+				{ typeof(UInt32),	rwUInt32MethodsInfo },
+				{ typeof(UInt16),	rwUInt16MethodsInfo },
+				{ typeof(Byte),		rwByteMethodsInfo },
+
+				{ typeof(float),	rwFloatMethodsInfo },
+				{ typeof(double),	rwDoubleMethodsInfo },
+
+				{ typeof(string),	rwStringMethodsInfo },
+			};
 		}
+
+
+		/*--------------------------------------------------------------------------------------------------------------------------------*/
+		/*--------------------------------------------------------------------------------------------------------------------------------*/
+		/*--------------------------------------------------------------------------------------------------------------------------------*/
 
 		private static bool isCollectionType(Type type) { 
 			return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ICollection<>);
@@ -177,11 +320,11 @@ namespace NetBinSerializer
 
 		public void writeCollectionObject(object collection) {
 			Type elementType = collection.GetType().GetInterfaces().First((Type interfaceType) => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>)).GetGenericArguments()[0];
-			if(elementType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)) {
+			if(elementType.IsGenericType && elementType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)) {
 				Type[] genericArgs = elementType.GetGenericArguments();
-				writeKeyValuePairsCollectionMethodInfo.MakeGenericMethod(genericArgs[0], genericArgs[1]).Invoke(this, new object[] { collection });
+				rwKeyValuePairsCollectionMethodsInfo.writeMethodInfo.MakeGenericMethod(genericArgs[0], genericArgs[1]).Invoke(this, new object[] { collection });
 			} else {
-				writeCollectionMethodInfo.MakeGenericMethod(elementType).Invoke(this, new object[] { collection });
+				rwCollectionMethodsInfo.writeMethodInfo.MakeGenericMethod(elementType).Invoke(this, new object[] { collection });
 			}
 		}
 
@@ -310,11 +453,11 @@ namespace NetBinSerializer
 
 		public object readCollectionObject(Type collectionType) { 
 			Type elementType = collectionType.GetInterfaces().First((Type interfaceType) => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>)).GetGenericArguments()[0];
-			if(elementType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)) {
+			if(elementType.IsGenericType && elementType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)) {
 				Type[] genericArgs = elementType.GetGenericArguments();
-				return readKeyValuePairsCollectionMethodInfo.MakeGenericMethod(collectionType, genericArgs[0], genericArgs[1]).Invoke(this, new object[0]);
+				return rwKeyValuePairsCollectionMethodsInfo.readMethodInfo.MakeGenericMethod(collectionType, genericArgs[0], genericArgs[1]).Invoke(this, new object[0]);
 			} else { 
-				return readCollectionMethodInfo.MakeGenericMethod(collectionType, elementType).Invoke(this, new object[0]);
+				return rwCollectionMethodsInfo.readMethodInfo.MakeGenericMethod(collectionType, elementType).Invoke(this, new object[0]);
 			}
 		}
 
