@@ -46,7 +46,14 @@ namespace Test {
 		}
 
 		static void Main(string[] args) {
-		
+			Console.WriteLine("--------------------------------Low level serialization--------------------------------");
+			TestLowLevelSerialization();
+			Console.WriteLine("--------------------------------High level serialization--------------------------------");
+			TestHighLevelSerialization();
+			Console.ReadKey();
+		}
+
+		static void TestLowLevelSerialization() { 
 			//--------------------------------Serialize--------------------------------
 			SerializeStream sstream = new SerializeStream();
 			//Write simple values
@@ -152,7 +159,105 @@ namespace Test {
 				Console.WriteLine($"{element.Key}: {element.Value} ");
 			Console.WriteLine();
 
-			Console.ReadKey();
+			
+		}
+
+		static void TestHighLevelSerialization() { 
+			//--------------------------------Serialize--------------------------------
+			Serializer.CACHE_DEFAULT = true;
+
+			SerializeStream sstream = new SerializeStream();
+			//Write simple values
+			sstream.serialize<int>(12);
+			sstream.serialize<string>("Hello!");
+			sstream.serialize<double>(100.5);
+
+			//Write arrays
+			sstream.serialize<int[]>(new int[] { 5, 5, 6, 3});
+			sstream.serialize<int[,]>(new int [,] { { 1, 3 }, { 4, 1 } });
+			sstream.serialize<int[][]>(new int [][] { new int[]{ 1, 3 }, new int[]{ 4, 1, 1, 1, 2, 2 } });
+			sstream.serialize<int[,][]>(new int[,][] { {new int[]{ 1, 3 }, new int[]{ 4, 1, 1, 1, 2, 2 } }, { new int[] { 5, 6, 6, 3 }, new int[] { 3, 4, 5, 6} } });
+
+			//Write serializable
+			sstream.serialize<SerializableExample>(new SerializableExample(3.0, 4.0));
+
+			//Write list
+			sstream.serialize<List<int>>(new List<int>() { 5, 3, 2, 1 });
+
+			//Write dictionary
+			sstream.serialize<Dictionary<string, int>>(new Dictionary<string, int>() { 
+				{ "azrael", 5 },
+				{ "luthor", 100},
+				{ "tom", 50},
+			});
+
+			//--------------------------------Deserialize--------------------------------
+
+			SerializeStream dstream = new SerializeStream(sstream.getBytes());
+			//Read simple values
+			int readInt = dstream.deserialize<int>();
+			string readString = dstream.deserialize<string>();
+			double readDouble = dstream.deserialize<double>();
+			Console.WriteLine("Output: {0}, {1}, {2}", readInt, readString, readDouble);
+
+			//Read arrays
+			int[] readInt1DArray = dstream.deserialize<int[]>();
+			Console.WriteLine("Output 1D Array: ");
+			for(int index = 0; index < readInt1DArray.Length; index++)
+				Console.Write($"{readInt1DArray[index]} ");
+			Console.WriteLine();
+
+
+			Console.WriteLine();
+			Console.WriteLine("Output 2D Array: ");
+			int[,] readInt2DArray = dstream.deserialize<int[,]>();
+			for(int i = 0; i < readInt2DArray.GetLength(0); i++) { 
+				for(int j = 0; j < readInt2DArray.GetLength(1); j++) { 
+					Console.Write($"{readInt2DArray[i, j]} ");
+				}
+				Console.WriteLine();
+			}
+
+
+			Console.WriteLine();
+			Console.WriteLine("Output nested arrays: ");
+			int[][] readIntNestedArrays = dstream.deserialize<int[][]>();
+			for(int i = 0; i < readIntNestedArrays.Length; i++) { 
+				for(int j = 0; j < readIntNestedArrays[i].Length; j++) { 
+					Console.Write($"{readIntNestedArrays[i][j]} ");
+				}
+				Console.WriteLine();
+			}
+
+			Console.WriteLine();
+			Console.WriteLine("Output nested arrays in 2D array: ");
+			int[,][] read2DIntNestedArraysArray = dstream.deserialize<int[,][]>();
+			for(int i = 0; i < read2DIntNestedArraysArray.GetLength(0); i++) { 
+				for(int j = 0; j < read2DIntNestedArraysArray.GetLength(1); j++) { 
+					for(int index = 0; index < read2DIntNestedArraysArray[i, j].Length; index++)
+						Console.Write($"{read2DIntNestedArraysArray[i, j][index]} ");
+					Console.Write(" | ");
+				}
+				Console.WriteLine();
+			}
+
+			Console.WriteLine();
+
+			//Read serializable
+			SerializableExample readSerializableExample = dstream.readSerializable<SerializableExample>();
+			Console.WriteLine($"Output: {readSerializableExample}");
+
+			Console.WriteLine();
+			Console.WriteLine("Output list:");
+			foreach(int element in dstream.deserialize<List<int>>())
+				Console.Write($"{element} ");
+			Console.WriteLine();
+
+			Console.WriteLine();
+			Console.WriteLine("Output Dictionary:");
+			foreach(var element in dstream.deserialize<Dictionary<string, int>>())
+				Console.WriteLine($"{element.Key}: {element.Value} ");
+			Console.WriteLine();
 		}
 	}
 }

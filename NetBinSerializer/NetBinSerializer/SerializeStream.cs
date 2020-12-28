@@ -23,7 +23,8 @@ namespace NetBinSerializer
 
 	public class SerializeStream
 	{
-		public static bool ENABLE_NOT_SERIALIZABLE_WARNINGS = false;
+		public static bool ENABLE_NOT_SERIALIZABLE_WARNINGS { get; set; } = false;
+		public static bool USE_SERIALIZER_FOR_DIFFICULT_TYPES { get; set; } = true;
 
 		public long Position { get => memoryStream.Position; set => memoryStream.Position = value;}
 		public long Length { get => memoryStream.Length; }
@@ -193,7 +194,7 @@ namespace NetBinSerializer
 		/*--------------------------------------------------------------------------------------------------------------------------------*/
 		/*--------------------------------------------------------------------------------------------------------------------------------*/
 
-		private static bool isCollectionType(Type type) { 
+		public static bool isCollectionType(Type type) { 
 			return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ICollection<>);
 		}
 
@@ -250,7 +251,7 @@ namespace NetBinSerializer
 			Writer.Write(str);
 		}
 
-		private IEnumerable<int[]> ndArrayWalker(int[] dimensions) {
+		public static IEnumerable<int[]> ndArrayWalker(int[] dimensions) {
 			int[] currentPos = new int[dimensions.Length];
 			while(true) { 
 				yield return currentPos;
@@ -278,7 +279,7 @@ namespace NetBinSerializer
 						writeArray(element);
 				} else { 
 					foreach(object element in arr)
-						writeUnknown(element);
+						write(element, elementType);
 				}
 			} else {
 				int[] dimensions = new int[rank];
@@ -293,7 +294,7 @@ namespace NetBinSerializer
 						writeArray((Array)arr.GetValue(currentPos));
 				} else {
 					foreach(int[] currentPos in ndArrayWalker(dimensions))
-						writeUnknown(arr.GetValue(currentPos));
+						write(arr.GetValue(currentPos), elementType);
 				}
 				
 			}
@@ -306,15 +307,15 @@ namespace NetBinSerializer
 		public void writeKeyValuePairsCollection<KEY_TYPE, VALUE_TYPE>(ICollection<KeyValuePair<KEY_TYPE, VALUE_TYPE>> collection) { 
 			write(collection.Count());
 			foreach(KeyValuePair<KEY_TYPE, VALUE_TYPE> pair in collection) { 
-				writeUnknown(pair.Key);
-				writeUnknown(pair.Value);
+				write(pair.Key, typeof(KEY_TYPE));
+				write(pair.Value, typeof(VALUE_TYPE));
 			}
 		}
 
 		public void writeCollection<ELEMENT_TYPE>(ICollection<ELEMENT_TYPE> collection) { 
 			write(collection.Count());
 			foreach(ELEMENT_TYPE element in collection) { 
-				writeUnknown(element);
+				write(element, typeof(ELEMENT_TYPE));
 			}
 		}
 
@@ -337,51 +338,69 @@ namespace NetBinSerializer
 			bf.Serialize(memoryStream, obj);
 		}
 
-		public void writeUnknown(object value) {
-			if(value is Int64) {
+		public void writeUnknown(object value) { 
+			write(value, value.GetType());
+		}
+
+		public void write(object value, Type type) {
+			if(type == typeof(Int64)) {
 				write((Int64)value);
 			} 
-			else if(value is Int32) {
+			else if(type == typeof(Int32)) {
 				write((Int32)value);
 			} 
-			else if(value is Int16) {
+			else if(type == typeof(Int16)) {
 				write((Int16)value);
 			} 
-			else if(value is sbyte) { 
+			else if(type == typeof(sbyte)) { 
 				write((sbyte)value);
 			}
-			else if(value is UInt64) {
+			else if(type == typeof(UInt64)) {
 				write((UInt64)value);
 			} 
-			else if(value is UInt32) {
+			else if(type == typeof(UInt32)) {
 				write((UInt32)value);
 			} 
-			else if(value is UInt16) {
+			else if(type == typeof(UInt16)) {
 				write((UInt16)value);
 			} 
-			else if(value is byte) {
+			else if(type == typeof(byte)) {
 				write((byte)value);
 			} 
-			else if(value is float) {
+			else if(type == typeof(float)) {
 				write((float)value);
 			} 
-			else if(value is double) {
+			else if(type == typeof(double)) {
 				write((double)value);
 			} 
-			else if(value is string) {
+			else if(type == typeof(string)) {
 				write((string)value);
 			}
-			else if(value is byte[]) {
+			else if(type == typeof(byte[])) {
 				write((byte[])value);
-			} else if(value is SerializeStream) {
+			} 
+
+			//Special types
+			else if(typeof(SerializeStream).IsAssignableFrom(type)) {
 				write(((SerializeStream)value).getBytes());
-			} else if(value is Array) {
-				writeArray((Array)value);
-			} else if(value.GetType().GetInterfaces().Any((Type t) => isCollectionType(t))) {
-				writeCollectionObject(value);
-			} else {
-				if(!Serializer.serialize(value, this))
-					writeObject(value);
+			} else if(typeof(Serializable).IsAssignableFrom(type)) {
+				write((Serializable)value);
+			} 
+			//Difficult types
+			else if(typeof(Array).IsAssignableFrom(type)) {
+				if(USE_SERIALIZER_FOR_DIFFICULT_TYPES)
+					Serializer.serialize(this, value, type);
+				else
+					writeArray((Array)value);
+			} else if(type.GetInterfaces().Any((Type t) => isCollectionType(t))) {
+				if(USE_SERIALIZER_FOR_DIFFICULT_TYPES)
+					Serializer.serialize(this, value, type);
+				else
+					writeCollectionObject(value);
+			} else if(Serializer.serializeSafe(this, value, type)) {
+
+			} else { 
+				writeObject(value);
 			}
 		} 
 		
@@ -473,7 +492,7 @@ namespace NetBinSerializer
 						result.SetValue(readArray(elementType), index);
 				} else { 
 					for(int index = 0; index < length; index++)
-						result.SetValue(readUnknown(elementType), index);
+						result.SetValue(read(elementType), index);
 				}
 				return result;
 			} else { 
@@ -488,7 +507,7 @@ namespace NetBinSerializer
 						result.SetValue(readArray(elementType), currentPos);
 				} else { 
 					foreach(int[] currentPos in ndArrayWalker(dimensions))
-						result.SetValue(readUnknown(elementType), currentPos);
+						result.SetValue(read(elementType), currentPos);
 				}
 
 				return result;
@@ -509,14 +528,14 @@ namespace NetBinSerializer
 		}
 
 		public void read<T>(out T result) {
-			result = (T)readUnknown(typeof(T));
+			result = (T)read(typeof(T));
 		}
 
 		public T read<T>() {
-			return (T)readUnknown(typeof(T));
+			return (T)read(typeof(T));
 		}
 
-		public object readUnknown(Type type) {
+		public object read(Type type) {
 			if(type == typeof(Int64)) {
 				return readInt64();
 			} 
@@ -553,20 +572,24 @@ namespace NetBinSerializer
 			else if(type == typeof(byte[])) {
 				return readBytes();
 			}
+
+			//Special types
 			else if(type == typeof(SerializeStream)) {
 				return new SerializeStream(readBytes());
 			}
+			else if(typeof(Serializable).IsAssignableFrom(type)) { 
+				return readSerializable(type);
+			}
+
+			//Difficult types
 			else if(type.IsArray) {
 				return readArray(type);
-			} else if(typeof(Serializable).IsAssignableFrom(type)) { 
-				return readSerializable(type);
 			} else if(type.GetInterfaces().Any((Type t) => isCollectionType(t))) {
 				return readCollectionObject(type);
-			} else {
-				object result;
-				if(Serializer.deserialize(this, type, out result))
-					result = readObject();
+			} else if(Serializer.deserializeSafe(this, out object result, type)) {
 				return result;
+			} else { 
+				return readObject();
 			}
 		}
 

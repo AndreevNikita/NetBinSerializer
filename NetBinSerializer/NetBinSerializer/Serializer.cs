@@ -3,16 +3,17 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace NetBinSerializer {
 
 	public class SerializeMethods {
-		public delegate void SerializeMethod(object obj, SerializeStream stream);
-		public SerializeMethod serializeMethod;
+		public delegate void SerializeMethod(SerializeStream stream, object obj);
+		public SerializeMethod serializeMethod { protected set; get; }
 		public delegate object DeserializeMethod(SerializeStream stream);
-		public DeserializeMethod deserializeMethod;
+		public DeserializeMethod deserializeMethod { protected set; get; }
 
 		public SerializeMethods(SerializeMethod serializeMethod, DeserializeMethod deserializeMethod) {
 			this.serializeMethod = serializeMethod;
@@ -23,89 +24,306 @@ namespace NetBinSerializer {
 	public static class Serializer {
 
 		private static ConcurrentDictionary<Type, SerializeMethods> serializeMethodsMap = new ConcurrentDictionary<Type, SerializeMethods>();
+		private static SerializeMethodsBuilder simpleSerializeMethodsBuilder = null;
+		private static SerializeMethodsBuilder serializeMethodsBuilder = null; 
+
+		public static bool PREFER_INTEGRATED_METHODS_BUILDER { get; set; } = true;
+		public static bool CACHE_DEFAULT { get; set; } = true;
+		//public static bool 
 
 		static Serializer() { 
+			simpleSerializeMethodsBuilder = new SimpleSerializeMethodsBuilder();
 			StandartSerializeMethods.register();
 		}
 
-		public static bool addSerializeMethods(Type type, SerializeMethods.SerializeMethod serializeMethod, SerializeMethods.DeserializeMethod deserializeMethod) {
-			return serializeMethodsMap.TryAdd(type, new SerializeMethods(serializeMethod, deserializeMethod));
+		//Cache managment interface
+
+		public static bool cache(SerializeMethods.SerializeMethod serializeMethod, SerializeMethods.DeserializeMethod deserializeMethod, Type type) {
+			return cache(new SerializeMethods(serializeMethod, deserializeMethod), type);
 		}
 
-		public static bool serialize(object obj, SerializeStream stream) {
+		public static bool cache(this SerializeMethods methods, Type type) { 
+			return serializeMethodsMap.TryAdd(type, methods);
+		}
+
+
+		public static bool buildAndCacheIntegrated(Type type) { 
+			SerializeMethods serializeMethods = simpleSerializeMethodsBuilder.getSerializeMethods(type, true);
+			return serializeMethods != null ? cache(serializeMethods, type) : false;
+		}
+
+		public static bool buildAndCache(Type type) {
+			asserNoMethodsBuilder();
+			SerializeMethods serializeMethods = serializeMethodsBuilder.getSerializeMethods(type, true);
+			return serializeMethods != null ? cache(serializeMethods, type) : false;
+		}
+
+
+		private static void asserNoMethodsBuilder() { 
+			if(serializeMethodsBuilder == null)
+				throw new SerializeException("No serialize methods builder");
+		}
+
+		//1.4 Serialize TYPE safe
+		public static bool serializeSafe<TYPE>(this SerializeStream stream, TYPE obj, bool? cacheBuiltMethods = null) { 
+			 return serializeSafe(stream, obj, typeof(TYPE), cacheBuiltMethods);
+		}
+
+		//1.3 Serialize TYPE unsafe
+		public static void serialize<TYPE>(this SerializeStream stream, TYPE obj, bool? cacheBuiltMethods = null) { 
+			serialize(stream, obj, typeof(TYPE), cacheBuiltMethods);
+		}
+
+		//1.2 Serialize object unsafe
+		public static void serialize(this SerializeStream stream, object obj, Type type, bool? cacheBuiltMethods = null) {
+			if(!serializeSafe(stream, obj, type, cacheBuiltMethods)) {
+				throw new SerializeException($"Can't serialize type {type}");
+			}
+		} 
+
+		//1.1 Serialize object safe
+		public static bool serializeSafe(this SerializeStream stream, object obj, Type type, bool? cacheBuiltMethods = null) {
 			SerializeMethods serializeMethods;
-			if(serializeMethodsMap.TryGetValue(obj.GetType(), out serializeMethods)) {
-				serializeMethods.serializeMethod(obj, stream);
+			if(getSerializeMethods(type, out serializeMethods, cacheBuiltMethods)) {
+				serializeMethods.serializeMethod(stream, obj);
 				return true;
 			}
 			return false;
 		} 
+		
 
-		public static bool deserialize(SerializeStream stream, Type type, out object result) {
+		//2.4 Deserialize TYPE unsafe
+		public static TYPE deserialize<TYPE>(this SerializeStream stream, bool? cacheBuiltMethods = false) { 
+			if(stream.deserializeSafe<TYPE>(out TYPE result, cacheBuiltMethods)) {
+				return result;
+			}
+
+			throw new SerializeException($"Can't deserialize type {typeof(TYPE)}");
+		}
+
+		//2.3 Deserialize TYPE safe 
+		public static bool deserializeSafe<TYPE>(this SerializeStream stream, out TYPE obj, bool? cacheBuiltMethods = false) { 
+			bool boolResult = deserializeSafe(stream, out object result, typeof(TYPE), cacheBuiltMethods);
+			obj = (TYPE)result;
+			return boolResult;
+		}
+
+		//2.2 Deserialize object unsafe
+		public static object deserialize(this SerializeStream stream, Type type, bool? cacheBuiltMethods = false) { 
+			if(deserializeSafe(stream, out object result, type, cacheBuiltMethods)) {
+				return result;
+			}
+
+			throw new SerializeException($"Can't deserialize type {type}");
+		}
+
+		//2.1 Deserialize object safe with return
+		public static bool deserializeSafe(this SerializeStream stream, out object result, Type type, bool? cacheBuiltMethods = false) {
 			SerializeMethods serializeMethods;
-			if(serializeMethodsMap.TryGetValue(type, out serializeMethods)) {
-				result = ((SerializeMethods)serializeMethods).deserializeMethod(stream);
+			if(getSerializeMethods(type, out serializeMethods, cacheBuiltMethods)) {
+				result = serializeMethods.deserializeMethod(stream);
 				return true;
 			}
 			result = default;
 			return false;
 		} 
 
-		public static T deserialize<T>(SerializeStream stream) {
-			return (T)((SerializeMethods)serializeMethodsMap[typeof(T)]).deserializeMethod(stream);
-		}
-
-		public static bool getSerializeMethods(Type type, out SerializeMethods methods) {
+		public static bool getSerializeMethods(Type type, out SerializeMethods methods, bool? cacheBuiltMethods = false) {
 			if(serializeMethodsMap.TryGetValue(type, out methods)) { 
 				return true;
 			//For unknown types
 			} else if(typeof(Serializable).IsAssignableFrom(type)) {
 				methods = new SerializeMethods(serializeSerializable, (SerializeStream stream) => { return stream.readSerializable(type); });
-				serializeMethodsMap[type] = methods;
+				if(cacheBuiltMethods.HasValue ? cacheBuiltMethods.Value : CACHE_DEFAULT)
+					serializeMethodsMap[type] = methods;
 				return true;
-			} else { 
+			} else {
+				if(PREFER_INTEGRATED_METHODS_BUILDER || serializeMethodsBuilder == null) { 
+					if((methods = simpleSerializeMethodsBuilder.getSerializeMethods(type, cacheBuiltMethods.HasValue ? cacheBuiltMethods.Value : CACHE_DEFAULT)) != null) {
+						return true;
+					}
+				} 
+
+				if(serializeMethodsBuilder != null) {
+					if((methods = serializeMethodsBuilder.getSerializeMethods(type, cacheBuiltMethods.HasValue ? cacheBuiltMethods.Value : CACHE_DEFAULT)) != null) { 
+						if(cacheBuiltMethods.HasValue ? cacheBuiltMethods.Value : CACHE_DEFAULT)
+							serializeMethodsMap[type] = methods;
+						return true;
+					} 
+				}
+
 				return false;
+				
 			}
 		}
 
-		public static SerializeMethods getSerializeMethods(Type type) { 
-			SerializeMethods result;
-			if(serializeMethodsMap.TryGetValue(type, out result)) { 
-				return result;
-			} else { 
-				return null;
-			}
+		public static SerializeMethods getSerializeMethods(Type type, bool cacheBuiltMethods = false) { 
+			getSerializeMethods(type, out  SerializeMethods result, cacheBuiltMethods);
+			return result;
 		}
 
-		public static void serializeSerializable(object serializable, SerializeStream stream) { 
+		public static void serializeSerializable(SerializeStream stream, object serializable) { 
 			((Serializable)serializable).writeToStream(stream);
 		}
 
-		/*
-		public void serialize<T>(T obj, SerializeStream stream) {
-			((SerializeMethods<T>)serializeMethodsMap[typeof(T)]).serializeMethod(obj, stream);
-		} */
+		public static void useMethodsBuilder(SerializeMethodsBuilder methodsBuilder) {
+			serializeMethodsBuilder = methodsBuilder;
+		}
+
+	}
+
+	public class SimpleSerializeMethodsBuilder : SerializeMethodsBuilder {
+		public SerializeMethods getSerializeMethods(Type type, bool withCache) {
+			if(type.IsArray) { 
+				return new ArraySerializeMethodsChain(type, withCache);
+			} else if(type.GetInterfaces().Any((Type t) => SerializeStream.isCollectionType(t))) { 
+				Type elementType = type.GetInterfaces().First((Type interfaceType) => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>)).GetGenericArguments()[0];
+				return (SerializeMethods)typeof(CollectionSerializeMethodsChain<,>).MakeGenericType(type, elementType).GetConstructor(new Type[] { typeof(bool) }).Invoke(new object[] { withCache });
+			} else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)) { 
+				Type[] genericArgs = type.GetGenericArguments();
+				return (SerializeMethods)typeof(KeyValuePairSerializationMethodsChain<,,>).MakeGenericType(type, genericArgs[0], genericArgs[1]).GetConstructor(new Type[] { typeof(bool) }).Invoke(new object[] { withCache });
+			} else {
+				return null;
+			}
+		}
+	}
+
+	public abstract class SerializeMethodsChain : SerializeMethods { 
+
+		public Type thisType { get; protected set; }
+		public SerializeMethods containTypeSerializeMethods { get; protected set; }
+
+		public SerializeMethodsChain(Type thisType, SerializeMethods containTypeSerializeMethods) : base(null, null) {
+			this.serializeMethod = serialize;
+			this.deserializeMethod = deserialize;
+			this.thisType = thisType;
+			this.containTypeSerializeMethods = containTypeSerializeMethods;
+		}
+
+		public abstract void serialize(SerializeStream stream, object obj);
+		public abstract object deserialize(SerializeStream stream);
+
+	}
+
+	public class ArraySerializeMethodsChain : SerializeMethodsChain {
+
+		public ArraySerializeMethodsChain(Type arrayType,  bool cacheBuiltMethods = false) : base(arrayType, Serializer.getSerializeMethods(arrayType.GetElementType(), cacheBuiltMethods)) { 
+		}
+
+		public override object deserialize(SerializeStream stream) {
+			int rank = stream.readInt32();
+			if(rank == 1) { 
+				int length = stream.readInt32();
+				Array result = Array.CreateInstance(thisType.GetElementType(), length);
+			
+				for(int index = 0; index < length; index++)
+					result.SetValue(containTypeSerializeMethods.deserializeMethod(stream), index);
+				
+				return result;
+			} else { 
+				int[] dimensions = new int[rank];
+				for(int dimensionIndex = 0; dimensionIndex < rank; dimensionIndex++) { 
+					dimensions[dimensionIndex] = stream.readInt32();
+				}
+
+				Array result = Array.CreateInstance(thisType.GetElementType(), dimensions);
+				foreach(int[] currentPos in SerializeStream.ndArrayWalker(dimensions))
+					result.SetValue(containTypeSerializeMethods.deserializeMethod(stream), currentPos);
+
+				return result;
+			}
+		}
+
+		public override void serialize(SerializeStream stream, object obj) {
+			Array arr = (Array)obj;
+			int rank = arr.Rank;
+			stream.write(rank);
+			if(rank == 1) {
+				stream.write(arr.Length);
+				for(int index = 0; index < arr.Length; index++)
+					containTypeSerializeMethods.serializeMethod(stream, arr.GetValue(index));
+			} else { 
+				int[] dimensions = new int[rank];
+				
+				for(int dimensionIndex = 0; dimensionIndex < rank; dimensionIndex++) {
+					stream.write(dimensions[dimensionIndex] = arr.GetLength(dimensionIndex));
+				}
+
+				foreach(int[] currentPos in SerializeStream.ndArrayWalker(dimensions))
+					containTypeSerializeMethods.serializeMethod(stream, arr.GetValue(currentPos));
+			}
+		}
+	}
+
+	public class CollectionSerializeMethodsChain<COLLECTION_TYPE, ELEMENT_TYPE> : SerializeMethodsChain where COLLECTION_TYPE : ICollection<ELEMENT_TYPE>, new() {
+
+		public CollectionSerializeMethodsChain(bool cacheBuiltMethods = false)
+			: base(
+				  typeof(COLLECTION_TYPE), 
+				  Serializer.getSerializeMethods(typeof(ELEMENT_TYPE), cacheBuiltMethods)
+			) 
+		{ }
+
+		public override object deserialize(SerializeStream stream) {
+			COLLECTION_TYPE result = new COLLECTION_TYPE();
+			int length = stream.readInt32();
+			for(int index = 0; index < length; index++)
+				result.Add((ELEMENT_TYPE)containTypeSerializeMethods.deserializeMethod(stream));
+			return result;
+		}
+
+		public override void serialize(SerializeStream stream, object obj) {
+			COLLECTION_TYPE collectionObj = (COLLECTION_TYPE)obj;
+			stream.write(collectionObj.Count);
+			foreach(ELEMENT_TYPE element in collectionObj)
+				containTypeSerializeMethods.serializeMethod(stream, element);
+		}
+	}
+
+	public class KeyValuePairSerializationMethodsChain<KEY_VALUE_PAIR_TYPE, KEY_TYPE, VALUE_TYPE> : SerializeMethodsChain {
+
+		SerializeMethods keySerializeMethods;
+		SerializeMethods valueSerializeMethods;
+
+		public KeyValuePairSerializationMethodsChain(bool cacheBuiltMethods = false) : base(typeof(KEY_VALUE_PAIR_TYPE), null) { 
+			keySerializeMethods = Serializer.getSerializeMethods(typeof(KEY_TYPE));
+			valueSerializeMethods = Serializer.getSerializeMethods(typeof(VALUE_TYPE));
+			serializeMethod = serialize;
+			deserializeMethod = deserialize;
+		}
+
+		public override object deserialize(SerializeStream stream) {
+			KEY_TYPE key = (KEY_TYPE)keySerializeMethods.deserializeMethod(stream);
+			VALUE_TYPE value = (VALUE_TYPE)valueSerializeMethods.deserializeMethod(stream);
+			return new KeyValuePair<KEY_TYPE, VALUE_TYPE>(key, value);
+		}
+
+		public override void serialize(SerializeStream stream, object obj) {
+			KeyValuePair<KEY_TYPE, VALUE_TYPE> keyValuePair = (KeyValuePair<KEY_TYPE, VALUE_TYPE>)obj;
+			keySerializeMethods.serializeMethod(stream, keyValuePair.Key);
+			valueSerializeMethods.serializeMethod(stream, keyValuePair.Value);
+		}
 	}
 
 	public static class StandartSerializeMethods {
 
 		/*				Numeric types				*/
 
-		public static void serializeInt64(object value, SerializeStream stream) { stream.write((Int64)value); }
-		public static void serializeInt32(object value, SerializeStream stream) { stream.write((Int32)value); }
-		public static void serializeInt16(object value, SerializeStream stream) { stream.write((Int16)value); }
-		public static void serializeInt8(object value, SerializeStream stream) { stream.write((sbyte)value); }
+		public static void serializeInt64(SerializeStream stream, object value) { stream.write((Int64)value); }
+		public static void serializeInt32(SerializeStream stream, object value) { stream.write((Int32)value); }
+		public static void serializeInt16(SerializeStream stream, object value) { stream.write((Int16)value); }
+		public static void serializeInt8(SerializeStream stream, object value) { stream.write((sbyte)value); }
 
 
-		public static void serializeUInt64(object value, SerializeStream stream) { stream.write((UInt64)value); }
-		public static void serializeUInt32(object value, SerializeStream stream) { stream.write((UInt32)value); }
-		public static void serializeUInt16(object value, SerializeStream stream) { stream.write((UInt16)value); }
-		public static void serializeUInt8(object value, SerializeStream stream) { stream.write((byte)value); }
+		public static void serializeUInt64(SerializeStream stream, object value) { stream.write((UInt64)value); }
+		public static void serializeUInt32(SerializeStream stream, object value) { stream.write((UInt32)value); }
+		public static void serializeUInt16(SerializeStream stream, object value) { stream.write((UInt16)value); }
+		public static void serializeUInt8(SerializeStream stream, object value) { stream.write((byte)value); }
 
 
 
-		public static void serializeFloat(object value, SerializeStream stream) { stream.write((Single)value); }
-		public static void serializeDouble(object value, SerializeStream stream) { stream.write((Double)value); }
+		public static void serializeFloat(SerializeStream stream, object value) { stream.write((Single)value); }
+		public static void serializeDouble(SerializeStream stream, object value) { stream.write((Double)value); }
 
 
 
@@ -128,35 +346,45 @@ namespace NetBinSerializer {
 
 		/*				Extended types				*/
 
-		public static void serializeByteArray(object value, SerializeStream stream) { stream.write((byte[])value); }
+		public static void serializeByteArray(SerializeStream stream, object value) { stream.write((byte[])value); }
 		public static object deserializeByteArray(SerializeStream stream) { return stream.readBytes(); }
 
 
-		public static void serializeString(object value, SerializeStream stream) { stream.write((string)value); }
+		public static void serializeString(SerializeStream stream, object value) { stream.write((string)value); }
 		public static object deserializeString(SerializeStream stream) { return stream.readString(); }
 
 
 
 		internal static void register() { 
-			Serializer.addSerializeMethods(typeof(Int64), serializeInt64, deserializeInt64);
-			Serializer.addSerializeMethods(typeof(Int32), serializeInt32, deserializeInt32);
-			Serializer.addSerializeMethods(typeof(Int16), serializeInt16, deserializeInt16);
-			Serializer.addSerializeMethods(typeof(sbyte), serializeInt8,  deserializeInt8);
+			Serializer.cache(serializeInt64, deserializeInt64, typeof(Int64));
+			Serializer.cache(serializeInt32, deserializeInt32, typeof(Int32));
+			Serializer.cache(serializeInt16, deserializeInt16, typeof(Int16));
+			Serializer.cache(serializeInt8,  deserializeInt8, typeof(sbyte));
 
-			Serializer.addSerializeMethods(typeof(UInt64), serializeUInt64, deserializeUInt64);
-			Serializer.addSerializeMethods(typeof(UInt32), serializeUInt32, deserializeUInt32);
-			Serializer.addSerializeMethods(typeof(UInt16), serializeUInt16, deserializeUInt16);
-			Serializer.addSerializeMethods(typeof(byte), serializeUInt8,  deserializeUInt8);
+			Serializer.cache(serializeUInt64, deserializeUInt64, typeof(UInt64));
+			Serializer.cache(serializeUInt32, deserializeUInt32, typeof(UInt32));
+			Serializer.cache(serializeUInt16, deserializeUInt16, typeof(UInt16));
+			Serializer.cache(serializeUInt8,  deserializeUInt8, typeof(byte));
 
-			Serializer.addSerializeMethods(typeof(Single), serializeFloat, deserializeFloat);
-			Serializer.addSerializeMethods(typeof(Double), serializeDouble, deserializeDouble);
+			Serializer.cache(serializeFloat, deserializeFloat, typeof(Single));
+			Serializer.cache(serializeDouble, deserializeDouble, typeof(Double));
 
-			Serializer.addSerializeMethods(typeof(byte[]), serializeByteArray, deserializeByteArray);
-			Serializer.addSerializeMethods(typeof(string), serializeString, deserializeString);
+			Serializer.cache(serializeByteArray, deserializeByteArray, typeof(byte[]));
+			Serializer.cache(serializeString, deserializeString, typeof(string));
 		}
 	}
 
+	public interface SerializeMethodsBuilder { 
 
+		SerializeMethods getSerializeMethods(Type type, bool withCache);
+
+	}
+
+	public class SerializeException : Exception { 
+
+		public SerializeException(string message) : base(message) {}
+
+	}
 	
 
 }
