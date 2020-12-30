@@ -9,7 +9,14 @@ using System.Threading.Tasks;
 
 namespace NetBinSerializer {
 
-	public class SerializeMethods {
+	public interface ISerializeMethods { 
+
+		void serialize(SerializeStream stream, object obj);
+		object deserialize(SerializeStream stream);
+
+	}
+
+	public class SerializeMethods : ISerializeMethods {
 		public delegate void SerializeMethod(SerializeStream stream, object obj);
 		public SerializeMethod serializeMethod { protected set; get; }
 		public delegate object DeserializeMethod(SerializeStream stream);
@@ -19,11 +26,19 @@ namespace NetBinSerializer {
 			this.serializeMethod = serializeMethod;
 			this.deserializeMethod = deserializeMethod;
 		}
+
+		public void serialize(SerializeStream stream, object obj) {
+			serializeMethod(stream, obj);
+		}
+
+		public object deserialize(SerializeStream stream) {
+			return deserializeMethod(stream);
+		}
 	}
 
 	public static class Serializer {
 
-		private static ConcurrentDictionary<Type, SerializeMethods> serializeMethodsMap = new ConcurrentDictionary<Type, SerializeMethods>();
+		private static ConcurrentDictionary<Type, ISerializeMethods> serializeMethodsMap = new ConcurrentDictionary<Type, ISerializeMethods>();
 		private static SerializeMethodsBuilder simpleSerializeMethodsBuilder = null;
 		private static SerializeMethodsBuilder serializeMethodsBuilder = null; 
 
@@ -42,19 +57,19 @@ namespace NetBinSerializer {
 			return cache(new SerializeMethods(serializeMethod, deserializeMethod), type);
 		}
 
-		public static bool cache(this SerializeMethods methods, Type type) { 
+		public static bool cache(this ISerializeMethods methods, Type type) { 
 			return serializeMethodsMap.TryAdd(type, methods);
 		}
 
 
 		public static bool buildAndCacheIntegrated(Type type) { 
-			SerializeMethods serializeMethods = simpleSerializeMethodsBuilder.getSerializeMethods(type, true);
+			ISerializeMethods serializeMethods = simpleSerializeMethodsBuilder.getSerializeMethods(type, true);
 			return serializeMethods != null ? cache(serializeMethods, type) : false;
 		}
 
 		public static bool buildAndCache(Type type) {
 			asserNoMethodsBuilder();
-			SerializeMethods serializeMethods = serializeMethodsBuilder.getSerializeMethods(type, true);
+			ISerializeMethods serializeMethods = serializeMethodsBuilder.getSerializeMethods(type, true);
 			return serializeMethods != null ? cache(serializeMethods, type) : false;
 		}
 
@@ -83,9 +98,8 @@ namespace NetBinSerializer {
 
 		//1.1 Serialize object safe
 		public static bool serializeSafe(this SerializeStream stream, object obj, Type type, bool? cacheBuiltMethods = null) {
-			SerializeMethods serializeMethods;
-			if(getSerializeMethods(type, out serializeMethods, cacheBuiltMethods)) {
-				serializeMethods.serializeMethod(stream, obj);
+			if(getSerializeMethods(type, out ISerializeMethods serializeMethods, cacheBuiltMethods)) {
+				serializeMethods.serialize(stream, obj);
 				return true;
 			}
 			return false;
@@ -119,16 +133,15 @@ namespace NetBinSerializer {
 
 		//2.1 Deserialize object safe with return
 		public static bool deserializeSafe(this SerializeStream stream, out object result, Type type, bool? cacheBuiltMethods = false) {
-			SerializeMethods serializeMethods;
-			if(getSerializeMethods(type, out serializeMethods, cacheBuiltMethods)) {
-				result = serializeMethods.deserializeMethod(stream);
+			if(getSerializeMethods(type, out ISerializeMethods serializeMethods, cacheBuiltMethods)) {
+				result = serializeMethods.deserialize(stream);
 				return true;
 			}
 			result = default;
 			return false;
 		} 
 
-		public static bool getSerializeMethods(Type type, out SerializeMethods methods, bool? cacheBuiltMethods = false) {
+		public static bool getSerializeMethods(Type type, out ISerializeMethods methods, bool? cacheBuiltMethods = false) {
 			if(serializeMethodsMap.TryGetValue(type, out methods)) { 
 				return true;
 			//For unknown types
@@ -157,8 +170,8 @@ namespace NetBinSerializer {
 			}
 		}
 
-		public static SerializeMethods getSerializeMethods(Type type, bool cacheBuiltMethods = false) { 
-			getSerializeMethods(type, out  SerializeMethods result, cacheBuiltMethods);
+		public static ISerializeMethods getSerializeMethods(Type type, bool cacheBuiltMethods = false) { 
+			getSerializeMethods(type, out ISerializeMethods result, cacheBuiltMethods);
 			return result;
 		}
 
@@ -173,29 +186,28 @@ namespace NetBinSerializer {
 	}
 
 	public class SimpleSerializeMethodsBuilder : SerializeMethodsBuilder {
-		public SerializeMethods getSerializeMethods(Type type, bool withCache) {
+		public ISerializeMethods getSerializeMethods(Type type, bool withCache) {
 			if(type.IsArray) { 
 				return new ArraySerializeMethodsChain(type, withCache);
 			} else if(type.GetInterfaces().Any((Type t) => SerializeStream.isCollectionType(t))) { 
 				Type elementType = type.GetInterfaces().First((Type interfaceType) => interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>)).GetGenericArguments()[0];
-				return (SerializeMethods)typeof(CollectionSerializeMethodsChain<,>).MakeGenericType(type, elementType).GetConstructor(new Type[] { typeof(bool) }).Invoke(new object[] { withCache });
+				return (ISerializeMethods)typeof(CollectionSerializeMethodsChain<,>).MakeGenericType(type, elementType).GetConstructor(new Type[] { typeof(bool) }).Invoke(new object[] { withCache });
 			} else if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(KeyValuePair<,>)) { 
 				Type[] genericArgs = type.GetGenericArguments();
-				return (SerializeMethods)typeof(KeyValuePairSerializationMethodsChain<,,>).MakeGenericType(type, genericArgs[0], genericArgs[1]).GetConstructor(new Type[] { typeof(bool) }).Invoke(new object[] { withCache });
+				return (ISerializeMethods)typeof(KeyValuePairSerializationMethodsChain<,,>).MakeGenericType(type, genericArgs[0], genericArgs[1]).GetConstructor(new Type[] { typeof(bool) }).Invoke(new object[] { withCache });
 			} else {
 				return null;
 			}
 		}
 	}
 
-	public abstract class SerializeMethodsChain : SerializeMethods { 
+	public abstract class SerializeMethodsChain : ISerializeMethods { 
 
 		public Type thisType { get; protected set; }
-		public SerializeMethods containTypeSerializeMethods { get; protected set; }
+		public ISerializeMethods containTypeSerializeMethods { get; protected set; }
 
-		public SerializeMethodsChain(Type thisType, SerializeMethods containTypeSerializeMethods) : base(null, null) {
-			this.serializeMethod = serialize;
-			this.deserializeMethod = deserialize;
+		public SerializeMethodsChain(Type thisType, ISerializeMethods containTypeSerializeMethods) {
+
 			this.thisType = thisType;
 			this.containTypeSerializeMethods = containTypeSerializeMethods;
 		}
@@ -217,7 +229,7 @@ namespace NetBinSerializer {
 				Array result = Array.CreateInstance(thisType.GetElementType(), length);
 			
 				for(int index = 0; index < length; index++)
-					result.SetValue(containTypeSerializeMethods.deserializeMethod(stream), index);
+					result.SetValue(containTypeSerializeMethods.deserialize(stream), index);
 				
 				return result;
 			} else { 
@@ -228,7 +240,7 @@ namespace NetBinSerializer {
 
 				Array result = Array.CreateInstance(thisType.GetElementType(), dimensions);
 				foreach(int[] currentPos in SerializeStream.ndArrayWalker(dimensions))
-					result.SetValue(containTypeSerializeMethods.deserializeMethod(stream), currentPos);
+					result.SetValue(containTypeSerializeMethods.deserialize(stream), currentPos);
 
 				return result;
 			}
@@ -241,7 +253,7 @@ namespace NetBinSerializer {
 			if(rank == 1) {
 				stream.write(arr.Length);
 				for(int index = 0; index < arr.Length; index++)
-					containTypeSerializeMethods.serializeMethod(stream, arr.GetValue(index));
+					containTypeSerializeMethods.serialize(stream, arr.GetValue(index));
 			} else { 
 				int[] dimensions = new int[rank];
 				
@@ -250,7 +262,7 @@ namespace NetBinSerializer {
 				}
 
 				foreach(int[] currentPos in SerializeStream.ndArrayWalker(dimensions))
-					containTypeSerializeMethods.serializeMethod(stream, arr.GetValue(currentPos));
+					containTypeSerializeMethods.serialize(stream, arr.GetValue(currentPos));
 			}
 		}
 	}
@@ -268,7 +280,7 @@ namespace NetBinSerializer {
 			COLLECTION_TYPE result = new COLLECTION_TYPE();
 			int length = stream.readInt32();
 			for(int index = 0; index < length; index++)
-				result.Add((ELEMENT_TYPE)containTypeSerializeMethods.deserializeMethod(stream));
+				result.Add((ELEMENT_TYPE)containTypeSerializeMethods.deserialize(stream));
 			return result;
 		}
 
@@ -276,32 +288,30 @@ namespace NetBinSerializer {
 			COLLECTION_TYPE collectionObj = (COLLECTION_TYPE)obj;
 			stream.write(collectionObj.Count);
 			foreach(ELEMENT_TYPE element in collectionObj)
-				containTypeSerializeMethods.serializeMethod(stream, element);
+				containTypeSerializeMethods.serialize(stream, element);
 		}
 	}
 
 	public class KeyValuePairSerializationMethodsChain<KEY_VALUE_PAIR_TYPE, KEY_TYPE, VALUE_TYPE> : SerializeMethodsChain {
 
-		SerializeMethods keySerializeMethods;
-		SerializeMethods valueSerializeMethods;
+		ISerializeMethods keySerializeMethods;
+		ISerializeMethods valueSerializeMethods;
 
 		public KeyValuePairSerializationMethodsChain(bool cacheBuiltMethods = false) : base(typeof(KEY_VALUE_PAIR_TYPE), null) { 
 			keySerializeMethods = Serializer.getSerializeMethods(typeof(KEY_TYPE));
 			valueSerializeMethods = Serializer.getSerializeMethods(typeof(VALUE_TYPE));
-			serializeMethod = serialize;
-			deserializeMethod = deserialize;
 		}
 
 		public override object deserialize(SerializeStream stream) {
-			KEY_TYPE key = (KEY_TYPE)keySerializeMethods.deserializeMethod(stream);
-			VALUE_TYPE value = (VALUE_TYPE)valueSerializeMethods.deserializeMethod(stream);
+			KEY_TYPE key = (KEY_TYPE)keySerializeMethods.deserialize(stream);
+			VALUE_TYPE value = (VALUE_TYPE)valueSerializeMethods.deserialize(stream);
 			return new KeyValuePair<KEY_TYPE, VALUE_TYPE>(key, value);
 		}
 
 		public override void serialize(SerializeStream stream, object obj) {
 			KeyValuePair<KEY_TYPE, VALUE_TYPE> keyValuePair = (KeyValuePair<KEY_TYPE, VALUE_TYPE>)obj;
-			keySerializeMethods.serializeMethod(stream, keyValuePair.Key);
-			valueSerializeMethods.serializeMethod(stream, keyValuePair.Value);
+			keySerializeMethods.serialize(stream, keyValuePair.Key);
+			valueSerializeMethods.serialize(stream, keyValuePair.Value);
 		}
 	}
 
@@ -376,7 +386,7 @@ namespace NetBinSerializer {
 
 	public interface SerializeMethodsBuilder { 
 
-		SerializeMethods getSerializeMethods(Type type, bool withCache);
+		ISerializeMethods getSerializeMethods(Type type, bool withCache);
 
 	}
 
