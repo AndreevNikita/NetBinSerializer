@@ -41,8 +41,6 @@ namespace NetBinSerializer {
 		private static ConcurrentDictionary<Type, ISerializeMethods> serializeMethodsMap = new ConcurrentDictionary<Type, ISerializeMethods>();
 		private static SerializeMethodsBuilder simpleSerializeMethodsBuilder = null;
 		private static SerializeMethodsBuilder serializeMethodsBuilder = null; 
-
-		public static bool PREFER_INTEGRATED_METHODS_BUILDER { get; set; } = true;
 		public static bool CACHE_DEFAULT { get; set; } = true;
 		//public static bool 
 
@@ -151,13 +149,11 @@ namespace NetBinSerializer {
 					serializeMethodsMap[type] = methods;
 				return true;
 			} else {
-				if(PREFER_INTEGRATED_METHODS_BUILDER || serializeMethodsBuilder == null) { 
+				if(serializeMethodsBuilder == null) { 
 					if((methods = simpleSerializeMethodsBuilder.getSerializeMethods(type, cacheBuiltMethods.HasValue ? cacheBuiltMethods.Value : CACHE_DEFAULT)) != null) {
 						return true;
 					}
-				} 
-
-				if(serializeMethodsBuilder != null) {
+				} else {
 					if((methods = serializeMethodsBuilder.getSerializeMethods(type, cacheBuiltMethods.HasValue ? cacheBuiltMethods.Value : CACHE_DEFAULT)) != null) { 
 						if(cacheBuiltMethods.HasValue ? cacheBuiltMethods.Value : CACHE_DEFAULT)
 							serializeMethodsMap[type] = methods;
