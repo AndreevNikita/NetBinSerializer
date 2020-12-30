@@ -56,6 +56,7 @@ namespace Test {
 		static void TestLowLevelSerialization() { 
 			//--------------------------------Serialize--------------------------------
 			SerializeStream sstream = new SerializeStream();
+			SerializeStream.USE_SERIALIZER_FOR_DIFFICULT_TYPES = false;
 			//Write simple values
 			int writeInt = 12;
 			string writeString = "Hello!";
@@ -165,6 +166,7 @@ namespace Test {
 		static void TestHighLevelSerialization() { 
 			//--------------------------------Serialize--------------------------------
 			Serializer.CACHE_DEFAULT = true;
+			SerializeStream.USE_SERIALIZER_FOR_DIFFICULT_TYPES = true;
 
 			SerializeStream sstream = new SerializeStream();
 			//Write simple values

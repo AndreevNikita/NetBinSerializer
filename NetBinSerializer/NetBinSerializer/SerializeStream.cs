@@ -77,6 +77,13 @@ namespace NetBinSerializer
 
 		private static Dictionary<Type, RWMethodsInfo> baseTypesRWMethodInfosDictionary;
 
+		public static RWMethodsInfo getTypeRWMethodsIfExists(Type type) {
+			if(getBaseTypeRWMethodsIfExists(type, out RWMethodsInfo result)) { 
+				return result;
+			}
+			throw new ArgumentException($"Can't get RW methods for {type}");
+		}
+
 		public static bool getBaseTypeRWMethodsIfExists(Type type, out RWMethodsInfo result) {
 			return baseTypesRWMethodInfosDictionary.TryGetValue(type, out result);
 		}
@@ -399,8 +406,8 @@ namespace NetBinSerializer
 					writeCollectionObject(value);
 			} else if(Serializer.serializeSafe(this, value, type)) {
 
-			} else { 
-				writeObject(value);
+			} else {
+				throw new SerializeStreamException($"Can't write type {type}");
 			}
 		} 
 		
@@ -583,13 +590,19 @@ namespace NetBinSerializer
 
 			//Difficult types
 			else if(type.IsArray) {
-				return readArray(type);
+				if(USE_SERIALIZER_FOR_DIFFICULT_TYPES)
+					return Serializer.deserialize(this, type);
+				else
+					return readArray(type);
 			} else if(type.GetInterfaces().Any((Type t) => isCollectionType(t))) {
-				return readCollectionObject(type);
+				if(USE_SERIALIZER_FOR_DIFFICULT_TYPES)
+					return Serializer.deserialize(this, type);
+				else
+					return readCollectionObject(type);
 			} else if(Serializer.deserializeSafe(this, out object result, type)) {
 				return result;
-			} else { 
-				return readObject();
+			} else {
+				throw new SerializeStreamException($"Can't read type {type}");
 			}
 		}
 
@@ -617,5 +630,11 @@ namespace NetBinSerializer
 
 	public interface Serializable {
 		void writeToStream(SerializeStream stream);
+	}
+
+	public class SerializeStreamException : Exception { 
+
+		public SerializeStreamException(string str, params object[] args) : base(string.Format(str, args)) { }
+
 	}
 }
