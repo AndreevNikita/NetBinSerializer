@@ -51,6 +51,14 @@ namespace NetBinSerializer {
 
 		//Cache managment interface
 
+		public static bool isCached(Type type) { 
+			return serializeMethodsMap.ContainsKey(type);
+		}
+
+		public static bool getCached(Type type, out ISerializeMethods result) { 
+			return serializeMethodsMap.TryGetValue(type, out result);
+		}
+
 		public static bool cache(SerializeMethods.SerializeMethod serializeMethod, SerializeMethods.DeserializeMethod deserializeMethod, Type type) {
 			return cache(new SerializeMethods(serializeMethod, deserializeMethod), type);
 		}
@@ -140,7 +148,7 @@ namespace NetBinSerializer {
 		} 
 
 		public static bool getSerializeMethods(Type type, out ISerializeMethods methods, bool? cacheBuiltMethods = false) {
-			if(serializeMethodsMap.TryGetValue(type, out methods)) { 
+			if(getCached(type, out methods)) { 
 				return true;
 			//For unknown types
 			} else if(typeof(Serializable).IsAssignableFrom(type)) {
@@ -389,6 +397,16 @@ namespace NetBinSerializer {
 	public class SerializeException : Exception { 
 
 		public SerializeException(string message) : base(message) {}
+
+	}
+
+	public class SerializeRule : Attribute { 
+
+		public bool mustSerialize { get; private set; }
+
+		public SerializeRule(bool mustSerialize) { 
+			this.mustSerialize = mustSerialize;
+		}
 
 	}
 	
