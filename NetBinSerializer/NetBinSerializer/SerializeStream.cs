@@ -77,7 +77,7 @@ namespace NetBinSerializer
 
 		private static Dictionary<Type, RWMethodsInfo> baseTypesRWMethodInfosDictionary;
 
-		public static RWMethodsInfo getTypeRWMethodsIfExists(Type type) {
+		public static RWMethodsInfo getBaseTypeRWMethods(Type type) {
 			if(getBaseTypeRWMethodsIfExists(type, out RWMethodsInfo result)) { 
 				return result;
 			}
