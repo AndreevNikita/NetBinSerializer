@@ -223,7 +223,10 @@ namespace NetBinSerializer {
 
 	public class ArraySerializationMethodsChain : SerializationMethodsChain {
 
-		public ArraySerializationMethodsChain(Type arrayType,  bool cacheBuiltMethods = false) : base(arrayType, Serializer.getSerializationMethods(arrayType.GetElementType(), cacheBuiltMethods)) { 
+		public ArraySerializationMethodsChain(Type arrayType,  bool cacheBuiltMethods = false) : this(arrayType, Serializer.getSerializationMethods(arrayType.GetElementType(), cacheBuiltMethods), cacheBuiltMethods) { 
+		}
+
+		public ArraySerializationMethodsChain(Type arrayType, ISerializationMethods serializationMethods, bool cacheBuiltMethods = false) : base(arrayType, serializationMethods) { 
 		}
 
 		public override object deserialize(SerializeStream stream) {
@@ -273,12 +276,9 @@ namespace NetBinSerializer {
 
 	public class CollectionSerializationMethodsChain<COLLECTION_TYPE, ELEMENT_TYPE> : SerializationMethodsChain where COLLECTION_TYPE : ICollection<ELEMENT_TYPE>, new() {
 
-		public CollectionSerializationMethodsChain(bool cacheBuiltMethods = false)
-			: base(
-				  typeof(COLLECTION_TYPE), 
-				  Serializer.getSerializationMethods(typeof(ELEMENT_TYPE), cacheBuiltMethods)
-			) 
-		{ }
+		public CollectionSerializationMethodsChain(bool cacheBuiltMethods = false) : this(Serializer.getSerializationMethods(typeof(ELEMENT_TYPE), cacheBuiltMethods), cacheBuiltMethods) { }
+
+		public CollectionSerializationMethodsChain(ISerializationMethods serializationMethods, bool cacheBuiltMethods = false) : base(typeof(COLLECTION_TYPE), serializationMethods) { }
 
 		public override object deserialize(SerializeStream stream) {
 			COLLECTION_TYPE result = new COLLECTION_TYPE();
@@ -301,9 +301,11 @@ namespace NetBinSerializer {
 		ISerializationMethods keySerializationMethods;
 		ISerializationMethods valueSerializationMethods;
 
-		public KeyValuePairSerializationMethodsChain(bool cacheBuiltMethods = false) : base(typeof(KEY_VALUE_PAIR_TYPE), null) { 
-			keySerializationMethods = Serializer.getSerializationMethods(typeof(KEY_TYPE));
-			valueSerializationMethods = Serializer.getSerializationMethods(typeof(VALUE_TYPE));
+		public KeyValuePairSerializationMethodsChain(bool cacheBuiltMethods = false) : this(Serializer.getSerializationMethods(typeof(KEY_TYPE)), Serializer.getSerializationMethods(typeof(VALUE_TYPE)),  cacheBuiltMethods) { }
+
+		public KeyValuePairSerializationMethodsChain(ISerializationMethods keySerializationMethods, ISerializationMethods valueSerializationMethods, bool cacheBuiltMethods = false) : base(typeof(KEY_VALUE_PAIR_TYPE), null) { 
+			this.keySerializationMethods = keySerializationMethods;
+			this.valueSerializationMethods = valueSerializationMethods;
 		}
 
 		public override object deserialize(SerializeStream stream) {
