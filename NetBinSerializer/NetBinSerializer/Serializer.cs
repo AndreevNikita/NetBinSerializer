@@ -184,6 +184,8 @@ namespace NetBinSerializer {
 		}
 
 		public static void useMethodsBuilder(SerializationMethodsBuilder methodsBuilder) {
+			if(serializationMethodsBuilder != null)
+				throw new Exception($"SerializationMethodsBuilder is already in use ({serializationMethodsBuilder.GetType()})");
 			serializationMethodsBuilder = methodsBuilder;
 		}
 
