@@ -39,8 +39,8 @@ namespace NetBinSerializer {
 	public static class Serializer {
 
 		private static ConcurrentDictionary<Type, ISerializationMethods> serializationMethodsMap = new ConcurrentDictionary<Type, ISerializationMethods>();
-		private static SerializationMethodsBuilder simpleSerializationMethodsBuilder = null;
-		private static SerializationMethodsBuilder serializationMethodsBuilder = null; 
+		private static ISerializationMethodsBuilder simpleSerializationMethodsBuilder = null;
+		private static ISerializationMethodsBuilder serializationMethodsBuilder = null; 
 		public static bool CACHE_DEFAULT { get; set; } = true;
 		//public static bool 
 
@@ -183,7 +183,7 @@ namespace NetBinSerializer {
 			((ISerializable)serializable).writeToStream(stream);
 		}
 
-		public static void useMethodsBuilder(SerializationMethodsBuilder methodsBuilder) {
+		public static void useMethodsBuilder(ISerializationMethodsBuilder methodsBuilder) {
 			if(serializationMethodsBuilder != null)
 				throw new Exception($"SerializationMethodsBuilder is already in use ({serializationMethodsBuilder.GetType()})");
 			serializationMethodsBuilder = methodsBuilder;
@@ -191,7 +191,7 @@ namespace NetBinSerializer {
 
 	}
 
-	public class SimpleSerializationMethodsBuilder : SerializationMethodsBuilder {
+	public class SimpleSerializationMethodsBuilder : ISerializationMethodsBuilder {
 		public ISerializationMethods getSerializationMethods(Type type, bool withCache) {
 			if(type.IsArray) { 
 				return new ArraySerializationMethodsChain(type, withCache);
@@ -392,7 +392,7 @@ namespace NetBinSerializer {
 		}
 	}
 
-	public interface SerializationMethodsBuilder { 
+	public interface ISerializationMethodsBuilder { 
 
 		ISerializationMethods getSerializationMethods(Type type, bool withCache);
 
