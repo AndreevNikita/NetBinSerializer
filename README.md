@@ -23,7 +23,7 @@ Interfaces:
 **ISerializationMethodsBuilder** - interface for high level serialize/deserialize custom methods builder class (implement getSerializationMethods for type serialization methods build)  
 
 
-**ISerializationMethods** - object, that provides methods `serialize(SerializeStream stream, object obj)` and `object deserialize(SerializeStream stream)`. Serializer class contains cached Dictionary of <Type, ISerializationMethods>.
+**SerializationMethodsBase** - object, that provides methods `serialize(SerializeStream stream, object obj)` and `object deserialize(SerializeStream stream)`. Serializer class contains cached Dictionary of <Type, ISerializationMethods>.
 
 ## SerializeStream
 Stream for objects serialization/deserialization
