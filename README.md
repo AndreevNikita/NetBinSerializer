@@ -13,14 +13,14 @@ Limitations
 * NetBinSerializer can't normal serialize/deserialize types, which use system pointers/descriptors and other resources
 * you should know, which fields are in serialized class/structure
 
+## Classes
+NetBinSerialization library has two serialization classes  
+**SerializeStream** - low level serialization object to serialize base types  
+**Serializer** - high level serialization static class with serialization methods caching, picking and building for difficult types  
 
-NetBinSerialization library has two serialization classes
-**SerializeStream** - low level serialization object to serialize base types
-**Serializer** - high level serialization static class with serialization methods caching, picking and building for difficult types
-
-Interfaces:
-**ISerializable** - interface with writeToStream and readToStream methods. If a class or structure implements this interface, serialization and deserialization will be complete by these methods call (deserialization works without constructor call!).
-**ISerializationMethodsBuilder** - interface for high level serialize/deserialize custom methods builder class (implement getSerializationMethods for type serialization methods build)
+Interfaces:  
+**ISerializable** - interface with writeToStream and readToStream methods. If a class or structure implements this interface, serialization and deserialization will be complete by these methods call (deserialization works without constructor call!).  
+**ISerializationMethodsBuilder** - interface for high level serialize/deserialize custom methods builder class (implement getSerializationMethods for type serialization methods build)  
 
 
 **ISerializationMethods** - object, that provides methods `serialize(SerializeStream stream, object obj)` and `object deserialize(SerializeStream stream)`. Serializer class contains cached Dictionary of <Type, ISerializationMethods>.
@@ -41,27 +41,27 @@ Supported main types: Int64, Int32, Int16, SByte, UInt64, UInt32, UInt16, Byte, 
 
 So SerializeStream can work with other Arrays and Collections types, but it's better to use Serializer.serialize and Serializer.deserialize methods for difficult types
 Write and read other types methods:
-- `void writeArray(Array)` / `Array readArray(Type)` with generic analogs
-- `void writeCollectionObject(object)` / `object readCollectionObject(Type)`
-- `void writeObject(object)` / `object readObject()` for difficultObject's (by using BinaryFormatter)
+* `void writeArray(Array)` / `Array readArray(Type)` with generic analogs
+* `void writeCollectionObject(object)` / `object readCollectionObject(Type)`
+* `void writeObject(object)` / `object readObject()` for difficultObject's (by using BinaryFormatter)
 
 ## Serializer
 High level serialization class, with supports caching, serialize/deserialize methods save, custom methods builders
 It's better to use this for difficult types, which aren't SerializeStream main types (so it's better for arrays and collections)
 
 #### Cache
-- `bool isCached(Type)` returns true if type's serialization methods are in cache
-- `bool getCached(Type, out ISerializationMethods methods)` returns **true** and **methods = serialization methods container** if type's serialization methods are in cache else **false**
-- `bool cache(SerializationMethods.SerializeMethod, SerializationMethods.DeserializeMethod, Type)` adds serialize and deserialize methods in cache, returns false, if methods for type are already in cache.
-- `bool cache(this ISerializationMethods, Type)` cache function for methods in **ISerializationMethods** shell 
+* `bool isCached(Type)` returns true if type's serialization methods are in cache
+* `bool getCached(Type, out ISerializationMethods methods)` returns **true** and **methods = serialization methods container** if type's serialization methods are in cache else **false**
+* `bool cache(SerializationMethods.SerializeMethod, SerializationMethods.DeserializeMethod, Type)` adds serialize and deserialize methods in cache, returns false, if methods for type are already in cache.
+* `bool cache(this ISerializationMethods, Type)` cache function for methods in **ISerializationMethods** shell 
 
-#### Prebuild serializeation methods
-`bool buildAndCacheIntegrated(Type)` (builds and caches type serialization methods with integrated **SimpleSerializationMethodsBuilder** (only for arrays and collections)) returns true if success
-`bool buildAndCache(Type)` builds and caches type serialization methods with custom serializationMethodsBuilder
+#### Prebuild serialization methods
+* `bool buildAndCacheIntegrated(Type)` (builds and caches type serialization methods with integrated **SimpleSerializationMethodsBuilder** (only for arrays and collections)) returns true if success
+* `bool buildAndCache(Type)` builds and caches type serialization methods with custom serializationMethodsBuilder
 
 #### Serialization/deserialization
-`serializeSafe/deserializeSafe and generics analogs` returns true, if obejct was successfully serialized/deserialized
-`serialize/deserialize` if serialization/deserialization fail occured, thrwos SerializationException
+* `serializeSafe/deserializeSafe and generics analogs` returns true, if obejct was successfully serialized/deserialized
+* `serialize/deserialize` if serialization/deserialization fail occured, thrwos SerializationException
 So Serializer methods has this SerializeStream arg, and because you can write `stream.serialize(myObject, typeof(MyObject))`
 
 ## Example
