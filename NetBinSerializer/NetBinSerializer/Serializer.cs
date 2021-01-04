@@ -151,7 +151,7 @@ namespace NetBinSerializer {
 			if(getCached(type, out methods)) { 
 				return true;
 			//For unknown types
-			} else if(typeof(Serializable).IsAssignableFrom(type)) {
+			} else if(typeof(ISerializable).IsAssignableFrom(type)) {
 				methods = new SerializationMethods(serializeSerializable, (SerializeStream stream) => { return stream.readSerializable(type); });
 				if(cacheBuiltMethods.HasValue ? cacheBuiltMethods.Value : CACHE_DEFAULT)
 					serializationMethodsMap[type] = methods;
@@ -180,7 +180,7 @@ namespace NetBinSerializer {
 		}
 
 		public static void serializeSerializable(SerializeStream stream, object serializable) { 
-			((Serializable)serializable).writeToStream(stream);
+			((ISerializable)serializable).writeToStream(stream);
 		}
 
 		public static void useMethodsBuilder(SerializationMethodsBuilder methodsBuilder) {

@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Test {
 
 	//Struct was checked too
-	class SerializableExample : Serializable {
+	class SerializableExample : ISerializable {
 		double x, y;
 
 
@@ -19,19 +19,20 @@ namespace Test {
 			this.y = y;
 		}
 
-		public SerializableExample(SerializeStream stream) { 
-			x = stream.readDouble();
-			y = stream.readDouble();
-		}
-
 		public void writeToStream(SerializeStream stream) {
 			stream.write(x);
 			stream.write(y);
 		}
 
+		public void readFromStream(SerializeStream stream) {
+			x = stream.readDouble();
+			y = stream.readDouble();
+		}
+
 		public override string ToString() {
 			return $"({x}; {y})";
 		}
+
 	}
 
 	class Program {

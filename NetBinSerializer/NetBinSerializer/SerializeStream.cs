@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
@@ -174,7 +175,7 @@ namespace NetBinSerializer
 			);
 
 			rwSerializableMethodsInfo = new RWMethodsInfo(
-				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Serializable) }, null), 
+				typeof(SerializeStream).GetMethod("write", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(ISerializable) }, null), 
 				typeof(SerializeStream).GetMethod("readSerializable", BindingFlags.Public | BindingFlags.Instance, null, new [] { typeof(Type) }, null)
 			);
 
@@ -307,7 +308,7 @@ namespace NetBinSerializer
 			}
 		}
 
-		public void write(Serializable serializable) {
+		public void write(ISerializable serializable) {
 			serializable.writeToStream(this);
 		}
 
@@ -390,8 +391,8 @@ namespace NetBinSerializer
 			//Special types
 			else if(typeof(SerializeStream).IsAssignableFrom(type)) {
 				write(((SerializeStream)value).getBytes());
-			} else if(typeof(Serializable).IsAssignableFrom(type)) {
-				write((Serializable)value);
+			} else if(typeof(ISerializable).IsAssignableFrom(type)) {
+				write((ISerializable)value);
 			} 
 			//Difficult types
 			else if(typeof(Array).IsAssignableFrom(type)) {
@@ -526,12 +527,14 @@ namespace NetBinSerializer
 			return bf.Deserialize(memoryStream);
 		}
 
-		public SERIALIZABLE_TYPE readSerializable<SERIALIZABLE_TYPE>() where SERIALIZABLE_TYPE : Serializable { 
+		public SERIALIZABLE_TYPE readSerializable<SERIALIZABLE_TYPE>() where SERIALIZABLE_TYPE : ISerializable { 
 			return (SERIALIZABLE_TYPE)readSerializable(typeof(SERIALIZABLE_TYPE));
 		}
 
-		public Serializable readSerializable(Type t) { 
-			return (Serializable)t.GetConstructor(new Type[] { typeof(SerializeStream) }).Invoke(new object[] { this });
+		public ISerializable readSerializable(Type t) { 
+			ISerializable result = (ISerializable)FormatterServices.GetUninitializedObject(t);
+			result.readFromStream(this);
+			return result;
 		}
 
 		public void read<T>(out T result) {
@@ -584,7 +587,7 @@ namespace NetBinSerializer
 			else if(type == typeof(SerializeStream)) {
 				return new SerializeStream(readBytes());
 			}
-			else if(typeof(Serializable).IsAssignableFrom(type)) { 
+			else if(typeof(ISerializable).IsAssignableFrom(type)) { 
 				return readSerializable(type);
 			}
 
@@ -628,8 +631,10 @@ namespace NetBinSerializer
 
 	
 
-	public interface Serializable {
+	public interface ISerializable {
 		void writeToStream(SerializeStream stream);
+
+		void readFromStream(SerializeStream stream);
 	}
 
 	public class SerializeStreamException : Exception { 
