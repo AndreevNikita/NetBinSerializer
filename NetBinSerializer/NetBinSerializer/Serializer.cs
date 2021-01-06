@@ -10,39 +10,7 @@ using System.Threading.Tasks;
 
 namespace NetBinSerializer {
 
-	public class SerializationContext { 
-		
-		Dictionary<object, int> serializedObjects = new Dictionary<object, int>();
-		int currentObjectIndex = 0;
-
-		//Returns -1 if object isn't found
-		public int tryToWriteObject(object obj) {
-			if(serializedObjects.TryGetValue(obj, out int result)) { 
-				return result;
-			} else { 
-				serializedObjects.Add(obj, currentObjectIndex++);
-				return -1;
-			}
-		}
-	}
-
-	public class DeserializationContext { 
-		
-		List<object> deserializedObjects = new List<object>();
-
-		public void writeObject(object obj) {
-			deserializedObjects.Add(obj);
-		}
-
-		//Returns object or null if object isn't found
-		//Negative values arn't allowed. If negative value was passed, it's program error
-		public object getObject(int index) {
-			if(index >= deserializedObjects.Count)
-				return null;
-			
-			return deserializedObjects[index];
-		}
-	}
+	
 
 	public abstract class SerializationMethodsBase { 
 
@@ -130,26 +98,29 @@ namespace NetBinSerializer {
 		}
 
 		//1.4 Serialize TYPE safe
-		public static bool serializeSafe<TYPE>(this SerializeStream stream, TYPE obj, bool? cacheBuiltMethods = null) { 
-			 return serializeSafe(stream, obj, typeof(TYPE), cacheBuiltMethods);
+		public static bool serializeSafe<TYPE>(this SerializeStream stream, TYPE obj, bool? cacheBuiltMethods = null, SerializationContext context = null) { 
+			 return serializeSafe(stream, obj, typeof(TYPE), cacheBuiltMethods, context);
 		}
 
 		//1.3 Serialize TYPE unsafe
-		public static void serialize<TYPE>(this SerializeStream stream, TYPE obj, bool? cacheBuiltMethods = null) { 
-			serialize(stream, obj, typeof(TYPE), cacheBuiltMethods);
+		public static void serialize<TYPE>(this SerializeStream stream, TYPE obj, bool? cacheBuiltMethods = null, SerializationContext context = null) { 
+			serialize(stream, obj, typeof(TYPE), cacheBuiltMethods, context);
 		}
 
 		//1.2 Serialize object unsafe
-		public static void serialize(this SerializeStream stream, object obj, Type type, bool? cacheBuiltMethods = null) {
-			if(!serializeSafe(stream, obj, type, cacheBuiltMethods)) {
+		public static void serialize(this SerializeStream stream, object obj, Type type, bool? cacheBuiltMethods = null, SerializationContext context = null) {
+			if(!serializeSafe(stream, obj, type, cacheBuiltMethods, context)) {
 				throw new SerializationException($"Can't serialize type {type}");
 			}
 		} 
 
 		//1.1 Serialize object safe
-		public static bool serializeSafe(this SerializeStream stream, object obj, Type type, bool? cacheBuiltMethods = null) {
+		public static bool serializeSafe(this SerializeStream stream, object obj, Type type, bool? cacheBuiltMethods = null, SerializationContext context = null) {
 			if(getSerializationMethods(type, out SerializationMethodsBase serializationMethods, cacheBuiltMethods)) {
-				serializationMethods.serialize(stream, obj);
+				if(context == null)
+					serializationMethods.serialize(stream, obj);
+				else
+					serializationMethods.serialize(stream, obj, context);
 				return true;
 			}
 			return false;
@@ -157,8 +128,8 @@ namespace NetBinSerializer {
 		
 
 		//2.4 Deserialize TYPE unsafe
-		public static TYPE deserialize<TYPE>(this SerializeStream stream, bool? cacheBuiltMethods = null) { 
-			if(stream.deserializeSafe<TYPE>(out TYPE result, cacheBuiltMethods)) {
+		public static TYPE deserialize<TYPE>(this SerializeStream stream, bool? cacheBuiltMethods = null, DeserializationContext context = null) { 
+			if(stream.deserializeSafe<TYPE>(out TYPE result, cacheBuiltMethods, context)) {
 				return result;
 			}
 
@@ -166,15 +137,15 @@ namespace NetBinSerializer {
 		}
 
 		//2.3 Deserialize TYPE safe 
-		public static bool deserializeSafe<TYPE>(this SerializeStream stream, out TYPE obj, bool? cacheBuiltMethods = null) { 
-			bool boolResult = deserializeSafe(stream, out object result, typeof(TYPE), cacheBuiltMethods);
+		public static bool deserializeSafe<TYPE>(this SerializeStream stream, out TYPE obj, bool? cacheBuiltMethods = null, DeserializationContext context = null) { 
+			bool boolResult = deserializeSafe(stream, out object result, typeof(TYPE), cacheBuiltMethods, context);
 			obj = (TYPE)result;
 			return boolResult;
 		}
 
 		//2.2 Deserialize object unsafe
-		public static object deserialize(this SerializeStream stream, Type type, bool? cacheBuiltMethods = null) { 
-			if(deserializeSafe(stream, out object result, type, cacheBuiltMethods)) {
+		public static object deserialize(this SerializeStream stream, Type type, bool? cacheBuiltMethods = null, DeserializationContext context = null) { 
+			if(deserializeSafe(stream, out object result, type, cacheBuiltMethods, context)) {
 				return result;
 			}
 
@@ -182,9 +153,12 @@ namespace NetBinSerializer {
 		}
 
 		//2.1 Deserialize object safe with return
-		public static bool deserializeSafe(this SerializeStream stream, out object result, Type type, bool? cacheBuiltMethods = null) {
+		public static bool deserializeSafe(this SerializeStream stream, out object result, Type type, bool? cacheBuiltMethods = null, DeserializationContext context = null) {
 			if(getSerializationMethods(type, out SerializationMethodsBase serializationMethods, cacheBuiltMethods)) {
-				result = serializationMethods.deserialize(stream);
+				if(context == null)
+					result = serializationMethods.deserialize(stream);
+				else
+					result = serializationMethods.deserialize(stream, context);
 				return true;
 			}
 			result = default;
@@ -286,31 +260,10 @@ namespace NetBinSerializer {
 		public ArraySerializationMethodsChain(Type arrayType, SerializationMethodsBase serializationMethods, bool? cacheBuiltMethods = null) : base(arrayType, serializationMethods) { 
 		}
 
-		public override object deserialize(SerializeStream stream, DeserializationContext context) {
-			int rank = stream.readInt32();
-			if(rank == 1) { 
-				int length = stream.readInt32();
-				Array result = Array.CreateInstance(thisType.GetElementType(), length);
-			
-				for(int index = 0; index < length; index++)
-					result.SetValue(containTypeSerializationMethods.deserialize(stream, context), index);
-				
-				return result;
-			} else { 
-				int[] dimensions = new int[rank];
-				for(int dimensionIndex = 0; dimensionIndex < rank; dimensionIndex++) { 
-					dimensions[dimensionIndex] = stream.readInt32();
-				}
-
-				Array result = Array.CreateInstance(thisType.GetElementType(), dimensions);
-				foreach(int[] currentPos in SerializeStream.ndArrayWalker(dimensions))
-					result.SetValue(containTypeSerializationMethods.deserialize(stream, context), currentPos);
-
-				return result;
-			}
-		}
-
 		public override void serialize(SerializeStream stream, object obj, SerializationContext context) {
+			if(context.optimize(stream, obj))
+				return;
+
 			Array arr = (Array)obj;
 			int rank = arr.Rank;
 			stream.write(rank);
@@ -329,6 +282,35 @@ namespace NetBinSerializer {
 					containTypeSerializationMethods.serialize(stream, arr.GetValue(currentPos), context);
 			}
 		}
+
+		public override object deserialize(SerializeStream stream, DeserializationContext context) {
+			(bool, object) optimizationResult = context.optimize(stream);
+			if(optimizationResult.Item1) { 
+				return optimizationResult.Item2;
+			}
+
+			int rank = stream.readInt32();
+
+			Array result;
+			if(rank == 1) { 
+				int length = stream.readInt32();
+				result = Array.CreateInstance(thisType.GetElementType(), length);
+			
+				for(int index = 0; index < length; index++)
+					result.SetValue(containTypeSerializationMethods.deserialize(stream, context), index);
+			} else { 
+				int[] dimensions = new int[rank];
+				for(int dimensionIndex = 0; dimensionIndex < rank; dimensionIndex++) { 
+					dimensions[dimensionIndex] = stream.readInt32();
+				}
+
+				result = Array.CreateInstance(thisType.GetElementType(), dimensions);
+				foreach(int[] currentPos in SerializeStream.ndArrayWalker(dimensions))
+					result.SetValue(containTypeSerializationMethods.deserialize(stream, context), currentPos);
+			}
+
+			return context.addObject(result);
+		}
 	}
 
 	public class CollectionSerializationMethodsChain<COLLECTION_TYPE, ELEMENT_TYPE> : SerializationMethodsChain where COLLECTION_TYPE : ICollection<ELEMENT_TYPE>, new() {
@@ -337,19 +319,27 @@ namespace NetBinSerializer {
 
 		public CollectionSerializationMethodsChain(SerializationMethodsBase serializationMethods, bool? cacheBuiltMethods = null) : base(typeof(COLLECTION_TYPE), serializationMethods) { }
 
-		public override object deserialize(SerializeStream stream, DeserializationContext context) {
-			COLLECTION_TYPE result = new COLLECTION_TYPE();
-			int length = stream.readInt32();
-			for(int index = 0; index < length; index++)
-				result.Add((ELEMENT_TYPE)containTypeSerializationMethods.deserialize(stream, context));
-			return result;
-		}
-
 		public override void serialize(SerializeStream stream, object obj, SerializationContext context) {
+			if(context.optimize(stream, obj))
+				return;
 			COLLECTION_TYPE collectionObj = (COLLECTION_TYPE)obj;
 			stream.write(collectionObj.Count);
 			foreach(ELEMENT_TYPE element in collectionObj)
 				containTypeSerializationMethods.serialize(stream, element, context);
+		}
+
+		public override object deserialize(SerializeStream stream, DeserializationContext context) {
+			(bool, object) optimizationResult = context.optimize(stream);
+			if(optimizationResult.Item1) { 
+				return optimizationResult.Item2;
+			}
+
+			COLLECTION_TYPE result = new COLLECTION_TYPE();
+			int length = stream.readInt32();
+			for(int index = 0; index < length; index++)
+				result.Add((ELEMENT_TYPE)containTypeSerializationMethods.deserialize(stream, context));
+
+			return context.addObject(result);
 		}
 	}
 
@@ -365,16 +355,16 @@ namespace NetBinSerializer {
 			this.valueSerializationMethods = valueSerializationMethods;
 		}
 
-		public override object deserialize(SerializeStream stream, DeserializationContext context) {
-			KEY_TYPE key = (KEY_TYPE)keySerializationMethods.deserialize(stream, context);
-			VALUE_TYPE value = (VALUE_TYPE)valueSerializationMethods.deserialize(stream, context);
-			return new KeyValuePair<KEY_TYPE, VALUE_TYPE>(key, value);
-		}
-
 		public override void serialize(SerializeStream stream, object obj, SerializationContext context) {
 			KeyValuePair<KEY_TYPE, VALUE_TYPE> keyValuePair = (KeyValuePair<KEY_TYPE, VALUE_TYPE>)obj;
 			keySerializationMethods.serialize(stream, keyValuePair.Key, context);
 			valueSerializationMethods.serialize(stream, keyValuePair.Value, context);
+		}
+
+		public override object deserialize(SerializeStream stream, DeserializationContext context) {
+			KEY_TYPE key = (KEY_TYPE)keySerializationMethods.deserialize(stream, context);
+			VALUE_TYPE value = (VALUE_TYPE)valueSerializationMethods.deserialize(stream, context);
+			return new KeyValuePair<KEY_TYPE, VALUE_TYPE>(key, value);
 		}
 	}
 
@@ -419,12 +409,33 @@ namespace NetBinSerializer {
 
 		/*				Extended types				*/
 
-		public static void serializeByteArray(SerializeStream stream, object value, SerializationContext context) { stream.write((byte[])value); }
-		public static object deserializeByteArray(SerializeStream stream, DeserializationContext context) { return stream.readBytes(); }
+		public static void serializeByteArray(SerializeStream stream, object value, SerializationContext context) { 
+			if(context.optimize(stream, value)) { 
+				return;
+			}
+			stream.write((byte[])value); 
+		}
+
+		public static object deserializeByteArray(SerializeStream stream, DeserializationContext context) { 
+			(bool, object) optimizationResult = context.optimize(stream);
+			if(optimizationResult.Item1)
+				return optimizationResult.Item2;
+			return context.addObject(stream.readBytes()); 
+		}
 
 
-		public static void serializeString(SerializeStream stream, object value, SerializationContext context) { stream.write((string)value); }
-		public static object deserializeString(SerializeStream stream, DeserializationContext context) { return stream.readString(); }
+		public static void serializeString(SerializeStream stream, object value, SerializationContext context) { 
+			if(context.optimize(stream, value)) { 
+				return;
+			}
+			stream.write((string)value); 
+		}
+		public static object deserializeString(SerializeStream stream, DeserializationContext context) { 
+			(bool, object) optimizationResult = context.optimize(stream);
+			if(optimizationResult.Item1)
+				return optimizationResult.Item2;
+			return context.addObject(stream.readString());
+		}
 
 
 
@@ -473,6 +484,81 @@ namespace NetBinSerializer {
 		void writeToStream(SerializeStream stream, SerializationContext context);
 
 		void readFromStream(SerializeStream stream, DeserializationContext context);
+	}
+
+	//--------------------------------------------------------------------------------------------------------
+	//--------------------------------Context optimization for reference types--------------------------------
+	//--------------------------------------------------------------------------------------------------------
+
+	//nulls, object references duplicates (include references cicles) cases optimization
+
+	public static class ContextOptimizationConsts { 
+		public const byte CODE_NORMAL_OBJECT = 0;
+		public const byte CODE_NULL = 1;
+		public const byte CODE_ALREADY_HANDLED = 2;
+	}
+
+	public class SerializationContext { 
+		
+		Dictionary<object, int> serializedObjects = new Dictionary<object, int>();
+		int currentObjectIndex = 0;
+
+		//Call this before serialization
+		//If method returns true, you have to serialize the object, false else
+		public bool optimize(SerializeStream stream, object obj) {
+			if(obj == null) { 
+				stream.write(ContextOptimizationConsts.CODE_NULL);
+				return true;
+			} else if(serializedObjects.TryGetValue(obj, out int index)) { 
+				stream.write(ContextOptimizationConsts.CODE_ALREADY_HANDLED);
+				stream.write(index);
+				return true;
+			} else { 
+				stream.write(ContextOptimizationConsts.CODE_NORMAL_OBJECT);
+				serializedObjects.Add(obj, currentObjectIndex);
+				currentObjectIndex++;
+				return false;
+			}
+		}
+	}
+
+	public class DeserializationContext { 
+		
+		List<object> deserializedObjects = new List<object>();
+
+		//Return's tuple where Item1 = true if object is in Item2
+		/*
+		 * Example deserialization code:
+		 * var optimizeResult = context.optimize(stream); //!!!
+		 * if(!optimizeResult.Item1)
+		 *     return optimizeResult.Item2;
+		 * 
+		 * 
+		 * //deserialization code
+		 * ...
+		 * context.addObject(result); //!!!
+		 * return result;
+		 * }
+		 */
+		public (bool, object) optimize(SerializeStream stream) {
+			byte code = stream.readByte();
+			if(code == ContextOptimizationConsts.CODE_NULL) { 
+				return (true, null);
+			} else if(code == ContextOptimizationConsts.CODE_ALREADY_HANDLED) { 
+				int index = stream.readInt32();
+				return (true, deserializedObjects[index]);
+			} else if(code == ContextOptimizationConsts.CODE_NORMAL_OBJECT) { 
+				return (false, null);
+			} else { 
+				throw new SerializationException($"Invalid context optimization code {code}");
+			}
+		}
+
+		//Returns this object
+		public object addObject(object obj) {
+			deserializedObjects.Add(obj);
+			return obj;
+		}
 	}
 
 }

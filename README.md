@@ -39,7 +39,7 @@ Supported main types: Int64, Int32, Int16, SByte, UInt64, UInt32, UInt16, Byte, 
 * to read base type in bytes use `[var_type] read+[var_type]()`
 * you can write objects by `void writeUnknown(object)`, but it's no reason to use this method. You should always know serializable/deserializable object's type
 
-So SerializeStream can work with other Arrays and Collections types, but it's better to use Serializer.serialize and Serializer.deserialize methods for difficult types
+Also SerializeStream can work with other Arrays and Collections types, but it's better to use Serializer.serialize and Serializer.deserialize methods for difficult types
 Write and read other types methods:
 * `void writeArray(Array)` / `Array readArray(Type)` with generic analogs
 * `void writeCollectionObject(object)` / `object readCollectionObject(Type)`
@@ -47,7 +47,7 @@ Write and read other types methods:
 
 ## Serializer
 High level serialization class, with supports caching, serialize/deserialize methods save, custom methods builders
-It's better to use this for difficult types, which aren't SerializeStream main types (so it's better for arrays and collections)
+It's better to use this for difficult types, which aren't SerializeStream main types (also it's better for arrays and collections)
 
 #### Cache
 * `bool isCached(Type)` returns true if type's serialization methods are in cache
@@ -62,7 +62,13 @@ It's better to use this for difficult types, which aren't SerializeStream main t
 #### Serialization/deserialization
 * `serializeSafe/deserializeSafe and generics analogs` returns true, if obejct was successfully serialized/deserialized
 * `serialize/deserialize` if serialization/deserialization fail occured, thrwos SerializationException
-So Serializer methods has this SerializeStream arg, and because you can write `stream.serialize(myObject, typeof(MyObject))`
+Also Serializer methods has this SerializeStream arg, and because you can write `stream.serialize(myObject, typeof(MyObject))`
+
+#### SerializationContext
+**SerializationContext** is optimization class, that solves some references problem (inclusive references cicles in the serialize tree) and approves null values
 
 ## Example
 [Example code for low and hight levels serialization/deserialization](https://github.com/AndreevNikita/NetBinSerializer/blob/master/NetBinSerializer/Test/Program.cs)
+
+##Also
+To see MSIL code, I used [ILSpy](https://github.com/icsharpcode/ILSpy) codes to get MSIL are in [ShowCode](https://github.com/AndreevNikita/InSharp/tree/master/InSharp/InSharp)

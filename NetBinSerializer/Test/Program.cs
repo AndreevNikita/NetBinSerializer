@@ -164,6 +164,18 @@ namespace Test {
 			
 		}
 
+		static void printArray(string header, int[] arr) { 
+			if(arr == null) {
+				Console.WriteLine($"{header}: null");
+				return;
+			}
+
+			Console.Write($"{header}: ");
+			for(int index = 0; index < arr.Length; index++)
+				Console.Write($"{arr[index]} ");
+			Console.WriteLine();
+		}
+
 		static void TestHighLevelSerialization() { 
 			//--------------------------------Serialize--------------------------------
 			Serializer.CACHE_DEFAULT = true;
@@ -193,6 +205,14 @@ namespace Test {
 				{ "luthor", 100},
 				{ "tom", 50},
 			});
+
+			//Context test
+			int[] arr = { 1, 2, 3, 4, 5 };
+			SerializationContext scontext = new SerializationContext();
+			sstream.serialize<int[]>(arr, null, scontext);
+			sstream.serialize<int[]>(arr, null, scontext);
+			sstream.serialize<int[]>(null, null, scontext);
+			sstream.serialize<int[]>(arr, null, scontext);
 
 			//--------------------------------Deserialize--------------------------------
 
@@ -260,6 +280,23 @@ namespace Test {
 			Console.WriteLine("Output Dictionary:");
 			foreach(var element in dstream.deserialize<Dictionary<string, int>>())
 				Console.WriteLine($"{element.Key}: {element.Value} ");
+			Console.WriteLine();
+
+			//Context test
+			Console.WriteLine();
+			Console.WriteLine();
+			Console.WriteLine("Context test...");
+			DeserializationContext dcontext = new DeserializationContext();
+			int[] arr1 = dstream.deserialize<int[]>(null, dcontext);
+			int[] arr2 = dstream.deserialize<int[]>(null, dcontext);
+			int[] arr3 = dstream.deserialize<int[]>(null, dcontext);
+			int[] arr4 = dstream.deserialize<int[]>(null, dcontext);
+			printArray("arr1", arr1);
+			printArray("arr2", arr2);
+			printArray("arr3", arr3);
+			printArray("arr4", arr4);
+			Console.WriteLine($"arr1 == arr2: {arr1 == arr2}");
+			Console.WriteLine($"arr2 == arr4: {arr2 == arr4}");
 			Console.WriteLine();
 		}
 	}
