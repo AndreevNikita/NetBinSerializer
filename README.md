@@ -21,7 +21,7 @@ NetBinSerialization library has two serialization classes
 Interfaces:  
 **ISerializable** - interface with writeToStream and readToStream methods. If a class or structure implements this interface, serialization and deserialization will be complete by these methods call (deserialization works without constructor call!).  
 **ISerializationMethodsBuilder** - interface for high level serialize/deserialize custom methods builder class (implement getSerializationMethods for type serialization methods build)  
-
+As methods builder you can use [SMAB](https://github.com/AndreevNikita/SerializeMethodsAutoBuilder) library.
 
 **SerializationMethodsBase** - object, that provides methods `serialize(SerializeStream stream, object obj)` and `object deserialize(SerializeStream stream)`. Serializer class contains cached Dictionary of <Type, ISerializationMethods>.
 
