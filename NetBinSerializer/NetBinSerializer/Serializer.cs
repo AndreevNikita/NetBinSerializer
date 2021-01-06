@@ -295,6 +295,7 @@ namespace NetBinSerializer {
 			if(rank == 1) { 
 				int length = stream.readInt32();
 				result = Array.CreateInstance(thisType.GetElementType(), length);
+				context.addObject(result);
 			
 				for(int index = 0; index < length; index++)
 					result.SetValue(containTypeSerializationMethods.deserialize(stream, context), index);
@@ -305,11 +306,12 @@ namespace NetBinSerializer {
 				}
 
 				result = Array.CreateInstance(thisType.GetElementType(), dimensions);
+				context.addObject(result);
 				foreach(int[] currentPos in SerializeStream.ndArrayWalker(dimensions))
 					result.SetValue(containTypeSerializationMethods.deserialize(stream, context), currentPos);
 			}
 
-			return context.addObject(result);
+			return result;
 		}
 	}
 
@@ -335,11 +337,12 @@ namespace NetBinSerializer {
 			}
 
 			COLLECTION_TYPE result = new COLLECTION_TYPE();
+			context.addObject(result);
 			int length = stream.readInt32();
 			for(int index = 0; index < length; index++)
 				result.Add((ELEMENT_TYPE)containTypeSerializationMethods.deserialize(stream, context));
 
-			return context.addObject(result);
+			return result;
 		}
 	}
 
@@ -536,7 +539,10 @@ namespace NetBinSerializer {
 		 * 
 		 * //deserialization code
 		 * ...
+		 * var objectInstance = new object();
 		 * context.addObject(result); //!!!
+		 * ...
+		 * 
 		 * return result;
 		 * }
 		 */
