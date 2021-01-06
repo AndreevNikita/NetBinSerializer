@@ -65,7 +65,7 @@ It's better to use this for difficult types, which aren't SerializeStream main t
 Also Serializer methods has this SerializeStream arg, and because you can write `stream.serialize(myObject, typeof(MyObject))`
 
 #### SerializationContext
-**SerializationContext** is optimization class, that solves some references problem (inclusive references cicles in the serialize tree) and approves null values
+**SerializationContext** is optimization class, that solves some references problem (inclusive references cycles in the serialize tree) and approves null values
 
 ## Example
 [Example code for low and hight levels serialization/deserialization](https://github.com/AndreevNikita/NetBinSerializer/blob/master/NetBinSerializer/Test/Program.cs)
