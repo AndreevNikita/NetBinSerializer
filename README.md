@@ -70,5 +70,5 @@ Also Serializer methods has this SerializeStream arg, and because you can write 
 ## Example
 [Example code for low and hight levels serialization/deserialization](https://github.com/AndreevNikita/NetBinSerializer/blob/master/NetBinSerializer/Test/Program.cs)
 
-##Also
+## Also
 To see MSIL code, I used [ILSpy](https://github.com/icsharpcode/ILSpy) codes to get MSIL are in [ShowCode](https://github.com/AndreevNikita/InSharp/tree/master/InSharp/InSharp)
