@@ -1,0 +1,5 @@
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\NetBinSerializer\bin\Debug\NetBinSerializer.dll
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\NetBinSerializer\bin\Debug\NetBinSerializer.pdb
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\NetBinSerializer.csproj.CoreCompileInputs.cache
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\NetBinSerializer.dll
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\NetBinSerializer.pdb

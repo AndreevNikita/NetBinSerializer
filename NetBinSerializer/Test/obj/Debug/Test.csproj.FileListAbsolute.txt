@@ -1,0 +1,10 @@
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.csprojAssemblyReference.cache
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.csproj.CoreCompileInputs.cache
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\bin\Debug\Test.exe.config
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\bin\Debug\Test.exe
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\bin\Debug\Test.pdb
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\bin\Debug\NetBinSerializer.dll
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\bin\Debug\NetBinSerializer.pdb
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.csproj.CopyComplete
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.exe
+C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.pdb
