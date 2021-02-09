@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{FF42C3B0-776B-4AA6-BA77-5CFD588D0F76}</ProjectGuid>
+    <ProjectGuid>{2C8611B4-F28C-4B44-BF2E-EFE1FD4E5782}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>Test</RootNamespace>
     <AssemblyName>Test</AssemblyName>
@@ -50,8 +50,11 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\NetBinSerializer\NetBinSerializer.csproj">
-      <Project>{dc36ae91-5386-4bdb-a720-0f482f78a6bd}</Project>
+      <Project>{bb721ffa-3b71-4b72-88c1-16154b7d1c15}</Project>
       <Name>NetBinSerializer</Name>
     </ProjectReference>
   </ItemGroup>
