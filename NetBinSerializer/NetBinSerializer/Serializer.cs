@@ -507,7 +507,7 @@ namespace NetBinSerializer {
 		int currentObjectIndex = 0;
 
 		//Call this before serialization
-		//If method returns true, you have to serialize the object, false else
+		//If method returns true, you don't have to serialize the object, false else
 		public bool optimize(SerializeStream stream, object obj) {
 			if(obj == null) { 
 				stream.write(ContextOptimizationConsts.CODE_NULL);
@@ -518,8 +518,11 @@ namespace NetBinSerializer {
 				return true;
 			} else { 
 				stream.write(ContextOptimizationConsts.CODE_NORMAL_OBJECT);
-				serializedObjects.Add(obj, currentObjectIndex);
-				currentObjectIndex++;
+				//Don't optimize structures
+				if(!obj.GetType().IsValueType) {
+					serializedObjects.Add(obj, currentObjectIndex);
+					currentObjectIndex++;
+				}
 				return false;
 			}
 		}
