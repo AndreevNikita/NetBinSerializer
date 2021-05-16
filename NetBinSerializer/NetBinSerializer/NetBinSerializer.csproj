@@ -7,7 +7,9 @@
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageProjectUrl>https://github.com/AndreevNikita/NetBinSerializer</PackageProjectUrl>
     <RepositoryUrl>https://github.com/AndreevNikita/NetBinSerializer</RepositoryUrl>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <Version>1.0.1</Version>
+    <Description>C# types serialization library</Description>
   </PropertyGroup>
 
   <ItemGroup>

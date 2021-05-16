@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>NetBinSerializer</id>
+    <version>1.0.1</version>
+    <authors>Nikita Andreev</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="file">LICENSE</license>
+    <licenseUrl>https://aka.ms/deprecateLicenseUrl</licenseUrl>
+    <projectUrl>https://github.com/AndreevNikita/NetBinSerializer</projectUrl>
+    <description>C# types serialization library</description>
+    <copyright>Nikita Andreev</copyright>
+    <repository url="https://github.com/AndreevNikita/NetBinSerializer" />
+    <dependencies>
+      <group targetFramework=".NETStandard2.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\bin\Release\netstandard2.0\NetBinSerializer.dll" target="lib\netstandard2.0\NetBinSerializer.dll" />
+    <file src="C:\Users\Nick\Documents\repos\InSharp\LICENSE" target="LICENSE" />
+  </files>
+</package>
