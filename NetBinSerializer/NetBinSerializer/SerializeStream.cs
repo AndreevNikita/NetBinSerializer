@@ -331,18 +331,31 @@ namespace NetBinSerializer {
 
 
 		public void WriteKeyValuePairsCollection<KEY_TYPE, VALUE_TYPE>(ICollection<KeyValuePair<KEY_TYPE, VALUE_TYPE>> collection) { 
-			Write(collection.Count());
+			long countPosition = RememberAndSeek(sizeof(Int32));
+			Int32 elementsCounter = 0;
 			foreach(KeyValuePair<KEY_TYPE, VALUE_TYPE> pair in collection) { 
 				Write(pair.Key, typeof(KEY_TYPE));
 				Write(pair.Value, typeof(VALUE_TYPE));
+				elementsCounter++;
 			}
+
+			long posBuffer = Position;
+			Position = countPosition;
+			WriteInt32(elementsCounter);
+			Position = posBuffer;
 		}
 
 		public void WriteCollection<ELEMENT_TYPE>(ICollection<ELEMENT_TYPE> collection) { 
-			Write(collection.Count());
+			long countPosition = RememberAndSeek(sizeof(Int32));
+			Int32 elementsCounter = 0;
 			foreach(ELEMENT_TYPE element in collection) { 
 				Write(element, typeof(ELEMENT_TYPE));
+				elementsCounter++;
 			}
+			long posBuffer = Position;
+			Position = countPosition;
+			WriteInt32(elementsCounter);
+			Position = posBuffer;
 		}
 
 		public void WriteCollectionObject(object collection) {

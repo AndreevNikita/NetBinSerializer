@@ -334,9 +334,17 @@ namespace NetBinSerializer {
 			if(context.Optimize(stream, obj))
 				return;
 			COLLECTION_TYPE collectionObj = (COLLECTION_TYPE)obj;
-			stream.Write(collectionObj.Count);
-			foreach(ELEMENT_TYPE element in collectionObj)
+			
+			long countPosition = stream.RememberAndSeek(sizeof(Int32));
+			Int32 elementsCounter = 0;
+			foreach(ELEMENT_TYPE element in collectionObj) {
 				ContainTypeSerializationMethods.Serialize(stream, element, context);
+				elementsCounter++;
+			}
+			long posBuffer = stream.Position;
+			stream.Position = countPosition;
+			stream.WriteInt32(elementsCounter);
+			stream.Position = posBuffer;
 		}
 
 		public override object Deserialize(SerializeStream stream, DeserializationContext context) {

@@ -8,8 +8,10 @@
     <PackageProjectUrl>https://github.com/AndreevNikita/NetBinSerializer</PackageProjectUrl>
     <RepositoryUrl>https://github.com/AndreevNikita/NetBinSerializer</RepositoryUrl>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <Description>C# types serialization library</Description>
+    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <FileVersion>1.0.2.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

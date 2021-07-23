@@ -93,6 +93,8 @@ namespace Test {
 			};
 			sstream.WriteCollectionObject(writeDict);
 
+			sstream.WriteUInt32(0xA116000D);
+
 			//--------------------------------Deserialize--------------------------------
 
 			SerializeStream dstream = new SerializeStream(sstream.GetBytes());
@@ -160,7 +162,9 @@ namespace Test {
 			foreach(var element in (Dictionary<string, int>)dstream.ReadCollectionObject(typeof(Dictionary<string, int>)))
 				Console.WriteLine($"{element.Key}: {element.Value} ");
 			Console.WriteLine();
-
+			
+			Console.WriteLine($"Control code: {dstream.ReadUInt32():X}");
+			Console.WriteLine();
 			
 		}
 
@@ -213,6 +217,8 @@ namespace Test {
 			sstream.Serialize<int[]>(arr, null, scontext);
 			sstream.Serialize<int[]>(null, null, scontext);
 			sstream.Serialize<int[]>(arr, null, scontext);
+
+			sstream.WriteUInt32(0xA116000D);
 
 			//--------------------------------Deserialize--------------------------------
 
@@ -298,6 +304,8 @@ namespace Test {
 			Console.WriteLine($"arr1 == arr2: {arr1 == arr2}");
 			Console.WriteLine($"arr2 == arr4: {arr2 == arr4}");
 			Console.WriteLine();
+
+			Console.WriteLine($"Control code: {dstream.Deserialize<UInt32>():X}");
 		}
 	}
 }
