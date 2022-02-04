@@ -8,3 +8,14 @@ C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\obj\Debug\
 C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.csproj.CopyComplete
 C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.exe
 C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.pdb
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\bin\Debug\Test.exe.config
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\bin\Debug\Test.exe
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\bin\Debug\Test.pdb
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\bin\Debug\NetBinSerializer.dll
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\bin\Debug\NetBinSerializer.pdb
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.csproj.AssemblyReference.cache
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.csproj.SuggestedBindingRedirects.cache
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.csproj.CoreCompileInputs.cache
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.csproj.CopyComplete
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.exe
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\Test\obj\Debug\Test.pdb

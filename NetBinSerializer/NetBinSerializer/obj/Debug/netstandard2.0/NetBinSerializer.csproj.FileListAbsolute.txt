@@ -7,3 +7,13 @@ C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\NetBinSerialize
 C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.csproj.CoreCompileInputs.cache
 C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.dll
 C:\Users\Nick\Documents\GitHub\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.pdb
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\bin\Debug\netstandard2.0\NetBinSerializer.deps.json
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\bin\Debug\netstandard2.0\NetBinSerializer.dll
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\bin\Debug\netstandard2.0\NetBinSerializer.pdb
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.AssemblyInfoInputs.cache
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.AssemblyInfo.cs
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.csproj.CoreCompileInputs.cache
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.dll
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.pdb
+C:\Users\Nick\Documents\repos\NetBinSerializer\NetBinSerializer\NetBinSerializer\obj\Debug\netstandard2.0\NetBinSerializer.csproj.AssemblyReference.cache
